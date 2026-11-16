@@ -4,9 +4,10 @@ import AudioToolbox
 /// Cleans up the narration in a finished recording, after ScreenCaptureKit has saved it.
 ///
 /// ScreenCaptureKit has no setting for noise or echo reduction on the microphone, so the cleanup runs on the
-/// saved file instead. The audio track is taken out, run through Apple's voice isolation unit (reduces
+/// saved file instead. The audio track is decoded, run through Apple's voice isolation unit (reduces
 /// background noise and room echo), a gentle rumble filter, a small level boost and a peak limiter, then
-/// encoded to AAC and put back at exactly the time the original track started. The video is copied as is.
+/// encoded to AAC once and written back at exactly the time the original track started. The video samples
+/// are copied as they are, without re-encoding.
 ///
 /// If any step fails, the original file is left untouched.
 enum VoiceCleanup {
@@ -47,76 +48,138 @@ enum VoiceCleanup {
         guard let originalAudio = try await original.loadTracks(withMediaType: .audio).first else {
             throw CleanupError.noAudio
         }
-        let audioRange = try await originalAudio.load(.timeRange)
+        guard let originalVideo = try await original.loadTracks(withMediaType: .video).first else {
+            throw CleanupError.unavailable("Video copy")
+        }
+        // Where the narration starts on the video's timeline (ScreenCaptureKit often starts it a few hundred ms in).
+        let audioStart = try await originalAudio.load(.timeRange).start
         let originalDuration = try await original.load(.duration)
 
-        // 1. Copy the AAC track out without re-encoding, so Core Audio can decode it.
-        let extracted = workFolder.appending(path: "original.m4a")
-        let audioOnly = AVMutableComposition()
-        guard let extractTrack = audioOnly.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-            throw CleanupError.unavailable("Audio extraction")
-        }
-        try extractTrack.insertTimeRange(audioRange, of: originalAudio, at: .zero)
-        try await export(audioOnly, to: extracted, as: .m4a)
+        // 1. Decode the narration and clean it up into uncompressed audio, so no encoder delay creeps in yet.
+        let cleaned = workFolder.appending(path: "cleaned.caf")
+        let channelCount = try process(from: url, to: cleaned)
 
-        // 2. Clean up the sound.
-        let cleaned = workFolder.appending(path: "cleaned.m4a")
-        try process(from: extracted, to: cleaned)
-
-        // 3. Put the cleaned audio back at the same start time, next to the untouched video.
-        let combined = AVMutableComposition()
-        for videoTrack in try await original.loadTracks(withMediaType: .video) {
-            guard let track = combined.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-                throw CleanupError.unavailable("Video copy")
-            }
-            let range = try await videoTrack.load(.timeRange)
-            try track.insertTimeRange(range, of: videoTrack, at: range.start)
-            track.preferredTransform = try await videoTrack.load(.preferredTransform)
-        }
-        let cleanedAsset = AVURLAsset(url: cleaned)
-        guard let cleanedAudio = try await cleanedAsset.loadTracks(withMediaType: .audio).first,
-              let audioTrack = combined.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-            throw CleanupError.renderFailed
-        }
-        let cleanedRange = try await cleanedAudio.load(.timeRange)
-        let length = CMTimeMinimum(cleanedRange.duration, audioRange.duration)
-        try audioTrack.insertTimeRange(CMTimeRange(start: cleanedRange.start, duration: length), of: cleanedAudio, at: audioRange.start)
-
-        // Write next to the recording so the final swap is a same-volume rename.
+        // 2. Write a new MP4: the video samples copied exactly, the cleaned audio encoded once to AAC at its original time.
         let result = url.deletingLastPathComponent()
             .appending(path: ".\(UUID().uuidString)-cleaned.mp4", directoryHint: .notDirectory)
         defer { try? FileManager.default.removeItem(at: result) }
-        try await export(combined, to: result, as: .mp4)
+        try await remux(video: originalVideo, of: original, cleanedAudio: cleaned, channelCount: channelCount,
+                        audioStart: audioStart, to: result)
 
-        // 4. Only replace the original once the new file checks out.
+        // 3. Only replace the original once the new file checks out.
         let check = AVURLAsset(url: result)
         let checkDuration = try await check.load(.duration)
-        let hasVideo = try await !check.loadTracks(withMediaType: .video).isEmpty
-        let hasAudio = try await !check.loadTracks(withMediaType: .audio).isEmpty
-        guard hasVideo, hasAudio, abs((checkDuration - originalDuration).seconds) < 0.25 else {
+        guard let checkAudio = try await check.loadTracks(withMediaType: .audio).first,
+              try await !check.loadTracks(withMediaType: .video).isEmpty,
+              abs((checkDuration - originalDuration).seconds) < 0.25,
+              abs((try await checkAudio.load(.timeRange).start - audioStart).seconds) < 0.005 else {
             throw CleanupError.resultMismatch
         }
         _ = try FileManager.default.replaceItemAt(url, withItemAt: result)
     }
 
-    private static func export(_ asset: AVAsset, to url: URL, as fileType: AVFileType) async throws {
-        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else {
-            throw CleanupError.unavailable("Passthrough export")
+    private static func remux(video videoTrack: AVAssetTrack, of original: AVAsset, cleanedAudio: URL, channelCount: Int,
+                              audioStart: CMTime, to url: URL) async throws {
+        let videoReader = try AVAssetReader(asset: original)
+        let videoOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
+        videoOutput.alwaysCopiesSampleData = false
+        videoReader.add(videoOutput)
+
+        let audioAsset = AVURLAsset(url: cleanedAudio)
+        guard let audioTrack = try await audioAsset.loadTracks(withMediaType: .audio).first else {
+            throw CleanupError.renderFailed
         }
-        try await session.export(to: url, as: fileType)
+        let audioReader = try AVAssetReader(asset: audioAsset)
+        let audioOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsNonInterleaved: false,
+            AVLinearPCMIsBigEndianKey: false,
+        ])
+        audioReader.add(audioOutput)
+
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: nil,
+                                            sourceFormatHint: try await videoTrack.load(.formatDescriptions).first)
+        videoInput.transform = try await videoTrack.load(.preferredTransform)
+        videoInput.expectsMediaDataInRealTime = false
+        let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: try await audioTrack.load(.naturalTimeScale),
+            AVNumberOfChannelsKey: channelCount,
+            AVEncoderBitRateKey: bitRatePerChannel * channelCount,
+        ])
+        audioInput.expectsMediaDataInRealTime = false
+        guard writer.canAdd(videoInput), writer.canAdd(audioInput) else {
+            throw CleanupError.unavailable("MP4 writing")
+        }
+        writer.add(videoInput)
+        writer.add(audioInput)
+
+        guard videoReader.startReading(), audioReader.startReading(), writer.startWriting() else {
+            throw videoReader.error ?? audioReader.error ?? writer.error ?? CleanupError.renderFailed
+        }
+        writer.startSession(atSourceTime: .zero)
+
+        var videoDone = false
+        var audioDone = false
+        while !(videoDone && audioDone) {
+            var progressed = false
+            if !videoDone, videoInput.isReadyForMoreMediaData {
+                progressed = true
+                if let sample = videoOutput.copyNextSampleBuffer() {
+                    guard videoInput.append(sample) else { throw writer.error ?? CleanupError.renderFailed }
+                } else {
+                    guard videoReader.status == .completed else { throw videoReader.error ?? CleanupError.renderFailed }
+                    videoInput.markAsFinished()
+                    videoDone = true
+                }
+            }
+            if !audioDone, audioInput.isReadyForMoreMediaData {
+                progressed = true
+                if let sample = audioOutput.copyNextSampleBuffer() {
+                    // Shift the cleaned audio to the moment the original narration started.
+                    let timing = try sample.sampleTimingInfos().map { info in
+                        var shifted = info
+                        shifted.presentationTimeStamp = info.presentationTimeStamp + audioStart
+                        shifted.decodeTimeStamp = .invalid
+                        return shifted
+                    }
+                    guard audioInput.append(try CMSampleBuffer(copying: sample, withNewTiming: timing)) else {
+                        throw writer.error ?? CleanupError.renderFailed
+                    }
+                } else {
+                    guard audioReader.status == .completed else { throw audioReader.error ?? CleanupError.renderFailed }
+                    audioInput.markAsFinished()
+                    audioDone = true
+                }
+            }
+            if !progressed {
+                if writer.status == .failed { throw writer.error ?? CleanupError.renderFailed }
+                try await Task.sleep(for: .milliseconds(2))
+            }
+        }
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw writer.error ?? CleanupError.renderFailed }
     }
 
-    /// Runs the audio through the cleanup chain faster than real time and writes it as AAC.
-    private static func process(from inputURL: URL, to outputURL: URL) throws {
+    /// Runs the recording's audio through the cleanup chain faster than real time and writes it as uncompressed audio.
+    /// Returns the channel count.
+    private static func process(from inputURL: URL, to outputURL: URL) throws -> Int {
+        // Core Audio decodes the MP4's AAC track directly and trims the encoder delay, so frame 0 is the
+        // first real sample of the narration.
         let input = try AVAudioFile(forReading: inputURL)
         let format = input.processingFormat
         let output = try AVAudioFile(
             forWriting: outputURL,
             settings: [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVFormatIDKey: kAudioFormatLinearPCM,
                 AVSampleRateKey: format.sampleRate,
                 AVNumberOfChannelsKey: format.channelCount,
-                AVEncoderBitRateKey: bitRatePerChannel * Int(format.channelCount),
+                AVLinearPCMBitDepthKey: 32,
+                AVLinearPCMIsFloatKey: true,
+                AVLinearPCMIsNonInterleaved: false,
             ],
             commonFormat: .pcmFormatFloat32,
             interleaved: false
@@ -126,13 +189,14 @@ enum VoiceCleanup {
         let player = AVAudioPlayerNode()
 
         let isolation = AVAudioUnitEffect(audioComponentDescription: appleEffect(kAudioUnitSubType_AUSoundIsolation))
-        let isolationUnit = isolation.audioUnit
-        guard AudioUnitSetParameter(isolationUnit, kAUSoundIsolationParam_WetDryMixPercent, kAudioUnitScope_Global, 0, 100, 0) == noErr else {
+        guard let isolationParameters = isolation.auAudioUnit.parameterTree,
+              let mix = isolationParameters.parameter(withAddress: AUParameterAddress(kAUSoundIsolationParam_WetDryMixPercent)) else {
             throw CleanupError.unavailable("Voice isolation")
         }
+        mix.value = 100
         // The higher-quality voice model (macOS 15 and later). If it can't be selected, the standard model stays on.
-        _ = AudioUnitSetParameter(isolationUnit, kAUSoundIsolationParam_SoundToIsolate, kAudioUnitScope_Global, 0,
-                                  AudioUnitParameterValue(kAUSoundIsolationSoundType_HighQualityVoice), 0)
+        isolationParameters.parameter(withAddress: AUParameterAddress(kAUSoundIsolationParam_SoundToIsolate))?.value =
+            AUValue(kAUSoundIsolationSoundType_HighQualityVoice)
 
         let filterAndBoost = AVAudioUnitEQ(numberOfBands: 1)
         let rumble = filterAndBoost.bands[0]
@@ -189,6 +253,7 @@ enum VoiceCleanup {
                 throw CleanupError.renderFailed
             }
         }
+        return Int(format.channelCount)
     }
 
     private static func write(_ buffer: AVAudioPCMBuffer, droppingFirst skip: AVAudioFrameCount, to file: AVAudioFile) throws {
