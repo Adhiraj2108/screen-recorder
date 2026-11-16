@@ -51,35 +51,74 @@ enum VoiceCleanup {
         guard let originalVideo = try await original.loadTracks(withMediaType: .video).first else {
             throw CleanupError.unavailable("Video copy")
         }
-        // Where the narration starts on the video's timeline (ScreenCaptureKit often starts it a few hundred ms in).
-        let audioStart = try await originalAudio.load(.timeRange).start
         let originalDuration = try await original.load(.duration)
 
-        // 1. Decode the narration and clean it up into uncompressed audio, so no encoder delay creeps in yet.
-        let cleaned = workFolder.appending(path: "cleaned.caf")
-        let channelCount = try process(from: url, to: cleaned)
+        // 1. Decode the narration as it plays on the video's timeline, from time zero. ScreenCaptureKit often starts
+        //    the microphone a few hundred ms after the video (stored as an empty edit), and that lead-in comes out as
+        //    silence here, as would any gap. So sample N of the decoded audio sits exactly at N / sample rate.
+        let decoded = workFolder.appending(path: "decoded.caf")
+        try await decodeTimeline(of: original, track: originalAudio, to: decoded)
 
-        // 2. Write a new MP4: the video samples copied exactly, the cleaned audio encoded once to AAC at its original time.
+        // 2. Clean it up into uncompressed audio, so no encoder delay creeps in yet.
+        let cleaned = workFolder.appending(path: "cleaned.caf")
+        let channelCount = try process(from: decoded, to: cleaned)
+        try? FileManager.default.removeItem(at: decoded)
+
+        // 3. Write a new MP4: the video samples copied exactly, the cleaned audio encoded once to AAC from time zero.
         let result = url.deletingLastPathComponent()
             .appending(path: ".\(UUID().uuidString)-cleaned.mp4", directoryHint: .notDirectory)
         defer { try? FileManager.default.removeItem(at: result) }
-        try await remux(video: originalVideo, of: original, cleanedAudio: cleaned, channelCount: channelCount,
-                        audioStart: audioStart, to: result)
+        try await remux(video: originalVideo, of: original, cleanedAudio: cleaned, channelCount: channelCount, to: result)
 
-        // 3. Only replace the original once the new file checks out.
+        // 4. Only replace the original once the new file checks out.
         let check = AVURLAsset(url: result)
         let checkDuration = try await check.load(.duration)
-        guard let checkAudio = try await check.loadTracks(withMediaType: .audio).first,
-              try await !check.loadTracks(withMediaType: .video).isEmpty,
-              abs((checkDuration - originalDuration).seconds) < 0.25,
-              abs((try await checkAudio.load(.timeRange).start - audioStart).seconds) < 0.005 else {
+        let hasAudio = try await !check.loadTracks(withMediaType: .audio).isEmpty
+        let hasVideo = try await !check.loadTracks(withMediaType: .video).isEmpty
+        guard hasAudio, hasVideo, abs((checkDuration - originalDuration).seconds) < 0.25 else {
             throw CleanupError.resultMismatch
         }
         _ = try FileManager.default.replaceItemAt(url, withItemAt: result)
     }
 
-    private static func remux(video videoTrack: AVAssetTrack, of original: AVAsset, cleanedAudio: URL, channelCount: Int,
-                              audioStart: CMTime, to url: URL) async throws {
+    /// Writes the track's audio, as heard on the asset's timeline from time zero, to an uncompressed file.
+    private static func decodeTimeline(of asset: AVAsset, track: AVAssetTrack, to url: URL) async throws {
+        guard let description = try await track.load(.formatDescriptions).first,
+              let stream = CMAudioFormatDescriptionGetStreamBasicDescription(description)?.pointee,
+              let format = AVAudioFormat(standardFormatWithSampleRate: stream.mSampleRate,
+                                         channels: AVAudioChannelCount(max(1, stream.mChannelsPerFrame))) else {
+            throw CleanupError.unavailable("Audio decoding")
+        }
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderAudioMixOutput(audioTracks: [track], audioSettings: [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: format.sampleRate,
+            AVNumberOfChannelsKey: format.channelCount,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsNonInterleaved: true,
+            AVLinearPCMIsBigEndianKey: false,
+        ])
+        reader.add(output)
+        let file = try AVAudioFile(forWriting: url, settings: format.settings,
+                                   commonFormat: .pcmFormatFloat32, interleaved: false)
+        guard reader.startReading() else { throw reader.error ?? CleanupError.renderFailed }
+        while let sample = output.copyNextSampleBuffer() {
+            let frames = AVAudioFrameCount(CMSampleBufferGetNumSamples(sample))
+            guard frames > 0 else { continue }
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames) else {
+                throw CleanupError.renderFailed
+            }
+            buffer.frameLength = frames
+            let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(sample, at: 0, frameCount: Int32(frames),
+                                                                      into: buffer.mutableAudioBufferList)
+            guard status == noErr else { throw CleanupError.renderFailed }
+            try file.write(from: buffer)
+        }
+        guard reader.status == .completed else { throw reader.error ?? CleanupError.renderFailed }
+    }
+
+    private static func remux(video videoTrack: AVAssetTrack, of original: AVAsset, cleanedAudio: URL, channelCount: Int, to url: URL) async throws {
         let videoReader = try AVAssetReader(asset: original)
         let videoOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
         videoOutput.alwaysCopiesSampleData = false
@@ -139,16 +178,8 @@ enum VoiceCleanup {
             if !audioDone, audioInput.isReadyForMoreMediaData {
                 progressed = true
                 if let sample = audioOutput.copyNextSampleBuffer() {
-                    // Shift the cleaned audio to the moment the original narration started.
-                    let timing = try sample.sampleTimingInfos().map { info in
-                        var shifted = info
-                        shifted.presentationTimeStamp = info.presentationTimeStamp + audioStart
-                        shifted.decodeTimeStamp = .invalid
-                        return shifted
-                    }
-                    guard audioInput.append(try CMSampleBuffer(copying: sample, withNewTiming: timing)) else {
-                        throw writer.error ?? CleanupError.renderFailed
-                    }
+                    // The cleaned audio already starts at time zero of the video's timeline.
+                    guard audioInput.append(sample) else { throw writer.error ?? CleanupError.renderFailed }
                 } else {
                     guard audioReader.status == .completed else { throw audioReader.error ?? CleanupError.renderFailed }
                     audioInput.markAsFinished()
@@ -167,8 +198,6 @@ enum VoiceCleanup {
     /// Runs the recording's audio through the cleanup chain faster than real time and writes it as uncompressed audio.
     /// Returns the channel count.
     private static func process(from inputURL: URL, to outputURL: URL) throws -> Int {
-        // Core Audio decodes the MP4's AAC track directly and trims the encoder delay, so frame 0 is the
-        // first real sample of the narration.
         let input = try AVAudioFile(forReading: inputURL)
         let format = input.processingFormat
         let output = try AVAudioFile(
