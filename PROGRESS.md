@@ -4,7 +4,7 @@
 
 **Status:** Incomplete. No milestone has been closed.
 
-**Active feature:** Deny screen capture and recover (remaining Milestone 1 acceptance check), then optional system audio.
+**Active feature:** Optional system audio (the capture blocked and recovery check passed).
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -23,7 +23,7 @@
 | --- | --- |
 | Save and replay one short narrated sample using the agreed format | Passed 16 Nov 2026 (H.264/AAC, owner checked text, scrolling, and speech). |
 | Try a real website and a dense Figma file | Passed at 1-minute length on 16 Nov 2026 (owner decision). A long run is in the final checks below. |
-| Deny screen capture and recover | Pending. Confirm there is useful feedback, then allow capture and try again. Canceling source selection does not establish this check. |
+| Capture blocked and recovery (changed by owner, 16 Nov; see Decisions) | (2) Microphone access off, note shown, back on and recording works: passed 16 Nov 2026 (owner). (1) Cancel the picker, app returns to Ready, next Record works: passed 16 Nov 2026 using Esc (owner). The Cancel button can't be clicked because the macOS picker covers the app window, so the status text now says "Esc cancels". |
 
 **Final checks before wrap-up.** Every item here must pass before Milestone 1 closes. They are saved for the end because they are long or heavy, not because they are optional.
 
@@ -71,4 +71,4 @@
 | Shortcut registers on the Mac, and a clash with another app is detected | Passed 16 Nov (test tools). |
 | Owner starts and stops a recording with ⌥⇧⌘R while another app is in front, and cancels the picker with it | Passed 16 Nov 2026 (owner: "Everything looks good"). |
 
-**Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete.
+**Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete. On 16 November 2026 the owner changed the "deny screen capture and recover" check. The app uses Apple's content picker, which grants access one recording at a time, so it never appears under Screen & System Audio Recording and that permission can't be denied (the owner confirmed it isn't listed and recording still works). The replacement check covers the two blocks that can happen: canceling the picker, and turning Microphone access off and back on.

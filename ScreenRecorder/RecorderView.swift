@@ -274,7 +274,7 @@ private struct RecorderPanel: View {
         switch phase {
         case .ready: "Ready to record"
         case .requestingMicrophone: "Microphone access"
-        case .choosingSource: "Select a window or display"
+        case .choosingSource: "Select a window or display (Esc cancels)"
         case .starting: "Preparing capture"
         case .recording: "Recording"
         case .saving: "Finishing the MP4"
