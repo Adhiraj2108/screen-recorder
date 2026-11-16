@@ -6,7 +6,7 @@ A native macOS app for recording narrated walkthroughs. The current build saves 
 
 Open `ScreenRecorder.xcodeproj`, select the **ScreenRecorder** scheme and **My Mac**, then press **Run**. In the app, choose whether to use the microphone, click **Record**, and select a window or display in the macOS picker. Stop the recording and use **Open recording** to review it or **Show in Finder** to find it in `~/Movies/Screen Recorder`.
 
-The existing build keeps the source resolution up to a 4K limit and captures up to 30 frames per second. It writes HEVC MP4 when available and falls back to H.264. The next change is to validate the H.264 baseline specified in the brief.
+The existing build keeps the source resolution up to a 4K limit and captures up to 30 frames per second. It writes H.264 MP4 in standard dynamic range (SDR), with an AAC audio track when the microphone is on, as the brief specifies.
 
 ## Development setup
 

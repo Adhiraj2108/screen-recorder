@@ -100,6 +100,8 @@ final class ScreenRecorder: NSObject {
             configuration.width = max(2, Int(width * scale / 2) * 2)
             configuration.height = max(2, Int(height * scale / 2) * 2)
             configuration.captureResolution = .best
+            // Brief baseline: standard dynamic range, at most 30 frames per second.
+            configuration.captureDynamicRange = .SDR
             configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
             configuration.showsCursor = true
             configuration.captureMicrophone = usesMicrophone
@@ -107,10 +109,14 @@ final class ScreenRecorder: NSObject {
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
             let recordingConfiguration = SCRecordingOutputConfiguration()
             recordingConfiguration.outputURL = url
+            // Brief baseline: H.264 video in an MP4 file. With the mic on, ScreenCaptureKit adds an AAC audio track.
+            guard recordingConfiguration.availableVideoCodecTypes.contains(.h264),
+                  recordingConfiguration.availableOutputFileTypes.contains(.mp4) else {
+                returnToReady("This Mac can’t record H.264 MP4 right now. Try again after restarting the app.")
+                return
+            }
             recordingConfiguration.outputFileType = .mp4
-            recordingConfiguration.videoCodecType = recordingConfiguration.availableVideoCodecTypes.contains(.hevc)
-                ? .hevc
-                : .h264
+            recordingConfiguration.videoCodecType = .h264
 
             let output = SCRecordingOutput(configuration: recordingConfiguration, delegate: self)
             try stream.addRecordingOutput(output)
