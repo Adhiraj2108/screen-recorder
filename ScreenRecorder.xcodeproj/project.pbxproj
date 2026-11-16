@@ -1,0 +1,119 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		A10000000000000000000001 = {
+			isa = PBXProject;
+			attributes = { LastSwiftUpdateCheck = 2720; LastUpgradeCheck = 2720; };
+			buildConfigurationList = A1000000000000000000000B;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = A10000000000000000000003;
+			productRefGroup = A10000000000000000000004;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A10000000000000000000002);
+		};
+		A10000000000000000000002 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000000C;
+			buildPhases = (A10000000000000000000006, A10000000000000000000007);
+			buildRules = ();
+			dependencies = ();
+			name = ScreenRecorder;
+			productName = "Screen Recorder";
+			productReference = A10000000000000000000008;
+			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000003 = {
+			isa = PBXGroup;
+			children = (A10000000000000000000005, A10000000000000000000004);
+			sourceTree = "<group>";
+		};
+		A10000000000000000000004 = {
+			isa = PBXGroup;
+			children = (A10000000000000000000008);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000005 = {
+			isa = PBXGroup;
+			children = (A10000000000000000000009, A1000000000000000000000A, A10000000000000000000013, A10000000000000000000015, A10000000000000000000016);
+			path = ScreenRecorder;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000006 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A10000000000000000000011, A10000000000000000000012, A10000000000000000000014);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000007 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000008 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Screen Recorder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorderApp.swift; sourceTree = "<group>"; };
+		A1000000000000000000000A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderView.swift; sourceTree = "<group>"; };
+		A1000000000000000000000B = {
+			isa = XCConfigurationList;
+			buildConfigurations = (A1000000000000000000000D, A1000000000000000000000E);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000000C = {
+			isa = XCConfigurationList;
+			buildConfigurations = (A1000000000000000000000F, A10000000000000000000010);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000000D = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A1000000000000000000000E = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A1000000000000000000000F = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000015;
+			buildSettings = {};
+			name = Debug;
+		};
+		A10000000000000000000010 = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000015;
+			buildSettings = {};
+			name = Release;
+		};
+		A10000000000000000000011 = {isa = PBXBuildFile; fileRef = A10000000000000000000009; };
+		A10000000000000000000012 = {isa = PBXBuildFile; fileRef = A1000000000000000000000A; };
+		A10000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
+		A10000000000000000000014 = {isa = PBXBuildFile; fileRef = A10000000000000000000013; };
+		A10000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		A10000000000000000000016 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+	};
+	rootObject = A10000000000000000000001;
+}

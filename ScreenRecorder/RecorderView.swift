@@ -1,0 +1,244 @@
+import SwiftUI
+
+struct RecorderView: View {
+    @Bindable var recorder: ScreenRecorder
+
+    var body: some View {
+        RecorderPanel(
+            phase: recorder.phase,
+            usesMicrophone: $recorder.usesMicrophone,
+            message: recorder.message,
+            lastRecordingDuration: recorder.lastRecording?.duration,
+            onPrimaryAction: performPrimaryAction,
+            onOpenRecording: recorder.openLastRecording,
+            onRevealRecording: recorder.revealLastRecording
+        )
+    }
+
+    private func performPrimaryAction() {
+        switch recorder.phase {
+        case .choosingSource: recorder.cancelSourceSelection()
+        case .recording: Task { await recorder.stop() }
+        case .ready: Task { await recorder.chooseSource() }
+        default: break
+        }
+    }
+}
+
+private struct RecorderPanel: View {
+    let phase: ScreenRecorder.Phase
+    @Binding var usesMicrophone: Bool
+    var message: String?
+    var lastRecordingDuration: TimeInterval?
+    var onPrimaryAction: () -> Void = {}
+    var onOpenRecording: () -> Void = {}
+    var onRevealRecording: () -> Void = {}
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var isDark: Bool { colorScheme == .dark }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Screen recorder")
+                    .font(.system(size: 22, weight: .medium))
+                    .accessibilityAddTraits(.isHeader)
+                Text("Record a window or display and save it as an MP4.")
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 0) {
+                recordingStatus
+                    .padding(16)
+                Divider()
+                HStack(spacing: 12) {
+                    Image(systemName: "mic")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    Text("Microphone")
+                        .accessibilityHidden(true)
+                    Spacer()
+                    Toggle("Microphone", isOn: $usesMicrophone)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(phase != .ready)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .background {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isDark ? Color(white: 0.13) : .white)
+                    .shadow(color: .black.opacity(isDark ? 0.5 : 0.10), radius: 2, y: 1)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(isDark ? Color(white: 0.30) : .black.opacity(0.08), lineWidth: 0.5)
+                    .allowsHitTesting(false)
+            }
+
+            if let message {
+                Text(message)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(.primary)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.orange.opacity(isDark ? 0.16 : 0.12), in: RoundedRectangle(cornerRadius: 8))
+            }
+
+            if let lastRecordingDuration {
+                savedRecording(duration: lastRecordingDuration)
+            }
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 12) {
+                Label("Saved in Movies", systemImage: "internaldrive")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                actionButton
+            }
+        }
+        .font(.system(size: 13, weight: .medium))
+        .padding(24)
+        .frame(minWidth: 460, minHeight: 328)
+        .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
+    }
+
+    private var recordingStatus: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isRecording ? "record.circle.fill" : "rectangle.dashed")
+                .font(.system(size: 21, weight: .medium))
+                .foregroundStyle(isRecording ? Color.red : Color.secondary)
+                .frame(width: 36, height: 36)
+                .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                .accessibilityHidden(true)
+            Text(statusTitle)
+                .font(.system(size: 16, weight: .medium))
+            Spacer(minLength: 12)
+            if case let .recording(start) = phase {
+                TimelineView(.periodic(from: start, by: 1)) { context in
+                    Text(timeLabel(context.date.timeIntervalSince(start)))
+                        .font(.system(size: 18, weight: .medium, design: .monospaced))
+                        .accessibilityLabel("Elapsed recording time")
+                        .accessibilityValue(timeLabel(context.date.timeIntervalSince(start)))
+                }
+            }
+        }
+    }
+
+    private func savedRecording(duration: TimeInterval) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle")
+                    .accessibilityHidden(true)
+                Text("Recording saved")
+                Spacer()
+                Text(timeLabel(duration))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Button("Open recording", action: onOpenRecording)
+                Button("Show in Finder", action: onRevealRecording)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var actionButton: some View {
+        Button(action: onPrimaryAction) {
+            Label(actionTitle, systemImage: actionIcon)
+                .frame(minWidth: 136, minHeight: 36)
+        }
+        .buttonStyle(RecorderButtonStyle())
+        .disabled(phase != .ready && phase != .choosingSource && !isRecording)
+    }
+
+    private var actionIcon: String {
+        switch phase {
+        case .choosingSource: "xmark"
+        case .recording: "stop.fill"
+        default: "record.circle"
+        }
+    }
+
+    private var isRecording: Bool {
+        if case .recording = phase { return true }
+        return false
+    }
+
+    private var actionTitle: String {
+        switch phase {
+        case .ready: "Record"
+        case .requestingMicrophone: "Waiting for access…"
+        case .choosingSource: "Cancel"
+        case .starting: "Starting…"
+        case .recording: "Stop recording"
+        case .saving: "Saving…"
+        }
+    }
+
+    private var statusTitle: String {
+        switch phase {
+        case .ready: "Ready to record"
+        case .requestingMicrophone: "Microphone access"
+        case .choosingSource: "Select a window or display"
+        case .starting: "Preparing capture"
+        case .recording: "Recording"
+        case .saving: "Finishing the MP4"
+        }
+    }
+
+    private func timeLabel(_ duration: TimeInterval) -> String {
+        let seconds = max(0, Int(duration))
+        if seconds >= 3600 {
+            return String(format: "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60)
+        }
+        return String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+#Preview("Ready", traits: .fixedLayout(width: 480, height: 360)) {
+    @Previewable @State var usesMicrophone = true
+    RecorderPanel(phase: .ready, usesMicrophone: $usesMicrophone)
+}
+
+#Preview("Recording", traits: .fixedLayout(width: 480, height: 360)) {
+    RecorderPanel(phase: .recording(.now.addingTimeInterval(-28)), usesMicrophone: .constant(true))
+}
+
+#Preview("Saved", traits: .fixedLayout(width: 480, height: 360)) {
+    RecorderPanel(phase: .ready, usesMicrophone: .constant(true), lastRecordingDuration: 62)
+}
+
+#Preview("Permission denied", traits: .fixedLayout(width: 480, height: 360)) {
+    RecorderPanel(
+        phase: .ready,
+        usesMicrophone: .constant(true),
+        message: "Allow Screen Recorder under Privacy & Security → Microphone, or turn the microphone off to record without narration."
+    )
+}
+
+private struct RecorderButtonStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        let isDark = colorScheme == .dark
+        configuration.label
+            .padding(.horizontal, 14)
+            .foregroundStyle(isDark ? .black : .white)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isDark ? Color(white: 0.93) : Color(white: 0.12))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .opacity(isEnabled ? 1 : 0.55)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}

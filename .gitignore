@@ -1,0 +1,26 @@
+# Xcode / Swift build output
+.build/
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+
+# Secrets and local config
+.env
+.env.*
+*.p12
+*.mobileprovision
+
+# Node (future Cloudflare Worker)
+node_modules/
+.wrangler/
+dist/
+
+# Recordings and large media
+*.mov
+*.mp4
+*.m4v
+*.webm
