@@ -45,6 +45,9 @@ final class ScreenRecorder: NSObject {
     let microphones = MicrophoneList()
     /// Live level for the mic that will be (or is being) recorded.
     let meter = InputMeter()
+    /// True when the system-wide start/stop shortcut is active (false if another app owns it).
+    private(set) var shortcutAvailable = false
+    @ObservationIgnored private var shortcut: GlobalShortcut?
 
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var captureTimeout: Task<Void, Never>?
@@ -56,6 +59,19 @@ final class ScreenRecorder: NSObject {
         microphones.onDisconnect = { [weak self] id in self?.microphoneDisconnected(id) }
         microphones.onChange = { [weak self] in self?.updateMeter() }
         updateMeter()
+        let shortcut = GlobalShortcut { [weak self] in self?.primaryAction() }
+        shortcutAvailable = shortcut.isRegistered
+        self.shortcut = shortcut
+    }
+
+    /// The Record / Cancel / Stop button, shared by the window and the keyboard shortcut.
+    func primaryAction() {
+        switch phase {
+        case .ready: Task { await chooseSource() }
+        case .choosingSource: cancelSourceSelection()
+        case .recording: Task { await stop() }
+        default: break
+        }
     }
 
     /// Point the meter at the mic in use: the recording's mic while capturing, otherwise the current pick.

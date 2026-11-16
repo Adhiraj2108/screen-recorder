@@ -61,4 +61,13 @@
 | Meter stays off and shows the access note when mic access isn't granted | Passed 16 Nov (checked with the test tools, which have no mic access). |
 | Owner checks the bar moves with their voice, follows a different chosen mic, keeps moving while recording, and the recording and cleanup still sound right | Passed 16 Nov 2026 (owner: "All steps work great"). |
 
+**Start/stop shortcut (started 16 November 2026):** ⌥⇧⌘R does the same as the main button from any app, even while Figma or a browser is in front: it opens the picker when ready, cancels the picker, or stops a recording (`GlobalShortcut.swift`). It uses the macOS hot key API, so no Accessibility permission is needed. ⌘⇧R was avoided because browsers use it for hard reload. The window shows the shortcut under "Saved in Movies", or says it's used by another app if registration fails, and a Recording menu lists it.
+
+| Shortcut step | Status |
+| --- | --- |
+| Code on a branch with a PR (not merged) | Done. |
+| Builds on the target Mac with no warnings | Done 16 Nov. |
+| Shortcut registers on the Mac, and a clash with another app is detected | Passed 16 Nov (test tools). |
+| Owner starts and stops a recording with ⌥⇧⌘R while another app is in front, and cancels the picker with it | Pending (needs the owner). |
+
 **Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete.

@@ -10,5 +10,12 @@ struct ScreenRecorderApp: App {
         }
         .defaultSize(width: 480, height: 360)
         .windowResizability(.contentMinSize)
+        .commands {
+            CommandMenu("Recording") {
+                // Shown for discoverability; while the app is running the system-wide shortcut handles the keys.
+                Button(recorder.phase == .ready ? "Record" : "Stop or Cancel", action: recorder.primaryAction)
+                    .keyboardShortcut("r", modifiers: [.command, .option, .shift])
+            }
+        }
     }
 }

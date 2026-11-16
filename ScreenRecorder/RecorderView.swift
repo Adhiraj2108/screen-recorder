@@ -10,22 +10,15 @@ struct RecorderView: View {
             cleansVoice: $recorder.cleansVoice,
             microphoneChoice: MicrophoneChoice(list: recorder.microphones),
             inputLevel: InputLevel(meter: recorder.meter),
+            shortcutAvailable: recorder.shortcutAvailable,
             message: recorder.message,
             lastRecordingDuration: recorder.lastRecording?.duration,
-            onPrimaryAction: performPrimaryAction,
+            onPrimaryAction: recorder.primaryAction,
             onOpenRecording: recorder.openLastRecording,
             onRevealRecording: recorder.revealLastRecording
         )
     }
 
-    private func performPrimaryAction() {
-        switch recorder.phase {
-        case .choosingSource: recorder.cancelSourceSelection()
-        case .recording: Task { await recorder.stop() }
-        case .ready: Task { await recorder.chooseSource() }
-        default: break
-        }
-    }
 }
 
 private struct RecorderPanel: View {
@@ -34,6 +27,7 @@ private struct RecorderPanel: View {
     @Binding var cleansVoice: Bool
     var microphoneChoice = MicrophoneChoice()
     var inputLevel = InputLevel()
+    var shortcutAvailable = true
     var message: String?
     var lastRecordingDuration: TimeInterval?
     var onPrimaryAction: () -> Void = {}
@@ -130,16 +124,22 @@ private struct RecorderPanel: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 12) {
-                Label("Saved in Movies", systemImage: "internaldrive")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Saved in Movies", systemImage: "internaldrive")
+                    Label(shortcutAvailable
+                          ? "\(GlobalShortcut.label) starts or stops from any app"
+                          : "\(GlobalShortcut.label) is used by another app",
+                          systemImage: "keyboard")
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
                 Spacer()
                 actionButton
             }
         }
         .font(.system(size: 13, weight: .medium))
         .padding(24)
-        .frame(minWidth: 460, minHeight: 464)
+        .frame(minWidth: 460, minHeight: 484)
         .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
     }
 
