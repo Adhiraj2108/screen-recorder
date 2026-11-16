@@ -21,6 +21,8 @@ final class ScreenRecorder: NSObject {
         let url: URL
         let includesMicrophone: Bool
         let cleansVoice: Bool
+        /// The Mac's own sound is saved as a second audio track and mixed in afterwards.
+        let includesSystemSound: Bool
         /// The mic in use, so unplugging it mid-recording can be spotted.
         let microphoneID: String?
         let microphoneName: String?
@@ -39,6 +41,8 @@ final class ScreenRecorder: NSObject {
     var usesMicrophone = true {
         didSet { updateMeter() }
     }
+    /// Also record the Mac's own sound (a video, a prototype's audio), mixed with the voice after recording.
+    var recordsSystemSound = false
     /// Reduce background noise and room echo, and lift the voice slightly, after each recording.
     var cleansVoice = true
     /// The inputs the owner can pick from, and the remembered choice.
@@ -164,6 +168,11 @@ final class ScreenRecorder: NSObject {
             configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
             configuration.showsCursor = true
             configuration.captureMicrophone = usesMicrophone
+            // The Mac's sound, without this app's own sounds. It is saved as its own track and mixed after recording.
+            configuration.capturesAudio = recordsSystemSound
+            configuration.excludesCurrentProcessAudio = true
+            configuration.sampleRate = 48_000
+            configuration.channelCount = 2
             let microphone = usesMicrophone ? microphones.resolve() : nil
             if let microphone {
                 // nil follows the Mac's default input; otherwise use the owner's remembered mic.
@@ -187,7 +196,7 @@ final class ScreenRecorder: NSObject {
             let output = SCRecordingOutput(configuration: recordingConfiguration, delegate: self)
             try stream.addRecordingOutput(output)
             let capture = Capture(stream: stream, output: output, url: url, includesMicrophone: usesMicrophone,
-                                  cleansVoice: usesMicrophone && cleansVoice,
+                                  cleansVoice: usesMicrophone && cleansVoice, includesSystemSound: recordsSystemSound,
                                   microphoneID: microphone?.activeID, microphoneName: microphone?.name,
                                   microphoneNotice: microphone?.notice)
             self.capture = capture
@@ -242,21 +251,30 @@ final class ScreenRecorder: NSObject {
                 return
             }
 
-            let hasAudio = try await !asset.loadTracks(withMediaType: .audio).isEmpty
+            let audioTrackCount = try await asset.loadTracks(withMediaType: .audio).count
+            let hasAudio = audioTrackCount > 0
             guard self.capture?.output === capture.output else { return }
-            var warning = capture.includesMicrophone && !hasAudio
+            var warning = capture.includesMicrophone && !capture.includesSystemSound && !hasAudio
                 ? "Video saved, but it has no microphone track. Check your input before recording again."
                 : nil
+            if capture.includesSystemSound && !hasAudio {
+                warning = "Video saved, but it has no sound. Check your input and that something was playing."
+            }
             if lostMicrophone && hasAudio {
                 warning = "Recording saved. \(capture.microphoneName ?? "The microphone") was disconnected partway through, so the voice may stop early. Choose another microphone if it isn’t plugged back in."
             }
             if let notice = capture.microphoneNotice {
                 warning = [notice, warning].compactMap { $0 }.joined(separator: " ")
             }
-            if capture.cleansVoice && hasAudio {
+            // With the Mac's sound and the voice, two tracks are saved. Players only play one, so mix them into one.
+            let mixesSounds = capture.includesMicrophone && capture.includesSystemSound
+            if mixesSounds && audioTrackCount == 1 {
+                // Not saved separately, so cleanup would treat the Mac's sound as noise. Leave the audio as it is.
+                warning = "Recording saved. The voice and Mac sound weren’t saved separately, so voice cleanup was skipped."
+            } else if hasAudio && (capture.cleansVoice || mixesSounds) {
                 phase = .cleaningVoice
                 do {
-                    try await VoiceCleanup.apply(to: capture.url)
+                    try await VoiceCleanup.apply(to: capture.url, cleansVoice: capture.cleansVoice, mixesSystemSound: mixesSounds)
                 } catch {
                     warning = "Recording saved with the original sound. Voice cleanup didn’t finish. \(error.localizedDescription)"
                 }

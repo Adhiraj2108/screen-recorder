@@ -4,7 +4,7 @@
 
 **Status:** Incomplete. No milestone has been closed.
 
-**Active feature:** Optional system audio (the capture blocked and recovery check passed).
+**Active feature:** Optional system audio ("Record Mac sound" switch). The capture-blocked and recovery check passed.
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -70,5 +70,15 @@
 | Builds on the target Mac with no warnings | Done 16 Nov. |
 | Shortcut registers on the Mac, and a clash with another app is detected | Passed 16 Nov (test tools). |
 | Owner starts and stops a recording with ⌥⇧⌘R while another app is in front, and cancels the picker with it | Passed 16 Nov 2026 (owner: "Everything looks good"). |
+
+**Optional system audio (started 17 November 2026):** A "Record Mac sound" switch records what the Mac is playing (a video, a prototype's sound) alongside the voice. ScreenCaptureKit captures it (this app's own sounds are excluded, 48 kHz stereo) and saves it as a second audio track, so the cleanup step now mixes the two into one stereo AAC track, because players and the future viewing page normally play only one track. Only the voice goes through voice isolation, the rumble filter and boost; the Mac sound is never cleaned, since isolation would treat music or video sound as noise. The Mac sound sits 4 dB below the voice, the mix is limited to 1 dB under full scale, and the Mac sound is delayed by the same amount as the voice chain so the two stay in sync. The microphone track is found by name, then by being the only mono track, then by order. If the file comes back with only one audio track while both sources were on, cleanup is skipped with a note so the Mac sound isn't damaged, and the original is kept if any step fails. Video stays H.264 at 30 fps, and recordings with the switch off are unchanged. Headphones are advised, since speakers would be heard by the mic as well as captured directly.
+
+| System audio step | Status |
+| --- | --- |
+| Code on a branch with a PR (not merged) | Done 17 Nov. |
+| Builds on the target Mac with no warnings | Done 17 Nov. |
+| Mixing tested on synthetic two-track files on the Mac (spoken voice plus a tone at 3.000 s) | Passed 17 Nov: one stereo AAC track, same length as the video; tone lands within 2 ms, the same with cleanup on or off; Mac sound 4 dB under its original level, voice 6 dB above it; peaks below −1 dBFS; works with the tracks in either order; voice-only recordings unchanged; a failed mix leaves the original file untouched. |
+| Owner records with the switch on while sound plays and they talk; checks both are heard, clear and in sync, with no echo on headphones | Pending (needs the owner; the tools can't capture the screen). |
+| Check the real file's tracks: that ScreenCaptureKit really saves two tracks, and the Mac sound comes through untouched | Pending, after the owner's test (the file is inspected with ffprobe and a test tone). |
 
 **Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete. On 16 November 2026 the owner changed the "deny screen capture and recover" check. The app uses Apple's content picker, which grants access one recording at a time, so it never appears under Screen & System Audio Recording and that permission can't be denied (the owner confirmed it isn't listed and recording still works). The replacement check covers the two blocks that can happen: canceling the picker, and turning Microphone access off and back on.

@@ -8,6 +8,7 @@ struct RecorderView: View {
             phase: recorder.phase,
             usesMicrophone: $recorder.usesMicrophone,
             cleansVoice: $recorder.cleansVoice,
+            recordsSystemSound: $recorder.recordsSystemSound,
             microphoneChoice: MicrophoneChoice(list: recorder.microphones),
             inputLevel: InputLevel(meter: recorder.meter),
             shortcutAvailable: recorder.shortcutAvailable,
@@ -25,6 +26,7 @@ private struct RecorderPanel: View {
     let phase: ScreenRecorder.Phase
     @Binding var usesMicrophone: Bool
     @Binding var cleansVoice: Bool
+    @Binding var recordsSystemSound: Bool
     var microphoneChoice = MicrophoneChoice()
     var inputLevel = InputLevel()
     var shortcutAvailable = true
@@ -96,6 +98,28 @@ private struct RecorderPanel: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+                Divider()
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.2")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Record Mac sound")
+                        Text(usesMicrophone && recordsSystemSound
+                             ? "Use headphones so the voice doesn’t pick up the speakers"
+                             : "Videos or audio playing on this Mac, mixed with your voice")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityHidden(true)
+                    Spacer()
+                    Toggle("Record Mac sound", isOn: $recordsSystemSound)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(phase != .ready)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
             .background {
                 RoundedRectangle(cornerRadius: 8)
@@ -139,7 +163,7 @@ private struct RecorderPanel: View {
         }
         .font(.system(size: 13, weight: .medium))
         .padding(24)
-        .frame(minWidth: 460, minHeight: 484)
+        .frame(minWidth: 460, minHeight: 548)
         .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
     }
 
@@ -295,7 +319,7 @@ private struct RecorderPanel: View {
     @Previewable @State var usesMicrophone = true
     @Previewable @State var selected: String? = "headset"
     RecorderPanel(
-        phase: .ready, usesMicrophone: $usesMicrophone, cleansVoice: .constant(true),
+        phase: .ready, usesMicrophone: $usesMicrophone, cleansVoice: .constant(true), recordsSystemSound: .constant(false),
         microphoneChoice: MicrophoneChoice(
             available: [.init(id: "built-in", name: "MacBook Air Microphone")],
             defaultName: "MacBook Air Microphone",
@@ -305,24 +329,24 @@ private struct RecorderPanel: View {
 
 #Preview("Speaking", traits: .fixedLayout(width: 480, height: 460)) {
     RecorderPanel(
-        phase: .ready, usesMicrophone: .constant(true), cleansVoice: .constant(true),
+        phase: .ready, usesMicrophone: .constant(true), cleansVoice: .constant(true), recordsSystemSound: .constant(false),
         microphoneChoice: MicrophoneChoice(defaultName: "MacBook Air Microphone"),
         inputLevel: InputLevel(level: 0.62, peak: 0.78))
 }
 
 #Preview("Recording", traits: .fixedLayout(width: 480, height: 420)) {
-    RecorderPanel(phase: .recording(.now.addingTimeInterval(-28)), usesMicrophone: .constant(true), cleansVoice: .constant(true))
+    RecorderPanel(phase: .recording(.now.addingTimeInterval(-28)), usesMicrophone: .constant(true), cleansVoice: .constant(true), recordsSystemSound: .constant(false))
 }
 
 #Preview("Saved", traits: .fixedLayout(width: 480, height: 420)) {
-    RecorderPanel(phase: .ready, usesMicrophone: .constant(true), cleansVoice: .constant(true), lastRecordingDuration: 62)
+    RecorderPanel(phase: .ready, usesMicrophone: .constant(true), cleansVoice: .constant(true), recordsSystemSound: .constant(false), lastRecordingDuration: 62)
 }
 
 #Preview("Permission denied", traits: .fixedLayout(width: 480, height: 420)) {
     RecorderPanel(
         phase: .ready,
         usesMicrophone: .constant(true),
-        cleansVoice: .constant(true),
+        cleansVoice: .constant(true), recordsSystemSound: .constant(false),
         message: "Allow Screen Recorder under Privacy & Security → Microphone, or turn the microphone off to record without narration."
     )
 }
