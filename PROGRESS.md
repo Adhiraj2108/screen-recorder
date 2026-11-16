@@ -51,4 +51,13 @@
 | Mic list, remembered choice, relaunch, and unplugged fallback logic (tested against the Mac's real inputs: MacBook Air mic, Camo, iPhone mic) | Passed 17 Nov. Found and fixed a bug where the saved choice was cleared at every launch. |
 | Owner tests on the Mac: headset chosen and used, choice remembered after relaunch, unplug fallback and warnings | Passed 16 Nov 2026 (owner: "The picker is working", "Everything worked good"). |
 
+**Input level meter (started 16 November 2026):** A "Level" bar under the Input menu moves as the owner speaks while the microphone switch is on, before and during recording (`InputMeter.swift`). It listens to the same mic the recording uses (the remembered pick, or the Mac default) through a separate AVFoundation listener, so the capture path and voice cleanup are unchanged. Green is normal speech, amber is loud (above about −12 dB), red is near distortion (above about −3 dB), and a thin marker holds the latest peak for a second. It never asks for mic access itself; until access is granted it says the meter shows after access is allowed. macOS shows its orange mic dot while the meter is listening.
+
+| Level meter step | Status |
+| --- | --- |
+| Code on a branch with a PR (not merged) | Done. |
+| Builds on the target Mac with no warnings | Done 16 Nov. |
+| Meter stays off and shows the access note when mic access isn't granted | Passed 16 Nov (checked with the test tools, which have no mic access). |
+| Owner checks the bar moves with their voice, follows a different chosen mic, keeps moving while recording, and the recording and cleanup still sound right | Pending (needs the owner). |
+
 **Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete.
