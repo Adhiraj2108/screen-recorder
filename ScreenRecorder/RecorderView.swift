@@ -9,6 +9,7 @@ struct RecorderView: View {
             usesMicrophone: $recorder.usesMicrophone,
             cleansVoice: $recorder.cleansVoice,
             microphoneChoice: MicrophoneChoice(list: recorder.microphones),
+            inputLevel: InputLevel(meter: recorder.meter),
             message: recorder.message,
             lastRecordingDuration: recorder.lastRecording?.duration,
             onPrimaryAction: performPrimaryAction,
@@ -32,6 +33,7 @@ private struct RecorderPanel: View {
     @Binding var usesMicrophone: Bool
     @Binding var cleansVoice: Bool
     var microphoneChoice = MicrophoneChoice()
+    var inputLevel = InputLevel()
     var message: String?
     var lastRecordingDuration: TimeInterval?
     var onPrimaryAction: () -> Void = {}
@@ -74,7 +76,11 @@ private struct RecorderPanel: View {
                     Divider()
                     microphonePicker
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.top, 10)
+                        .padding(.bottom, 6)
+                    levelMeter
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
                 }
                 Divider()
                 HStack(spacing: 12) {
@@ -133,7 +139,7 @@ private struct RecorderPanel: View {
         }
         .font(.system(size: 13, weight: .medium))
         .padding(24)
-        .frame(minWidth: 460, minHeight: 436)
+        .frame(minWidth: 460, minHeight: 464)
         .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
     }
 
@@ -162,6 +168,30 @@ private struct RecorderPanel: View {
             .pickerStyle(.menu)
             .frame(maxWidth: 240)
             .disabled(phase != .ready)
+        }
+    }
+
+    private var levelMeter: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "mic")
+                .foregroundStyle(.clear)
+                .accessibilityHidden(true)
+            Text("Level")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Spacer()
+            if inputLevel.needsAccess {
+                Text("Shows after you allow microphone access")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 240, alignment: .leading)
+            } else {
+                LevelBar(level: inputLevel.level, peak: inputLevel.peak)
+                    .frame(width: 240, height: 8)
+                    .accessibilityElement()
+                    .accessibilityLabel("Microphone level")
+                    .accessibilityValue("\(Int(inputLevel.level * 100)) percent")
+            }
         }
     }
 
@@ -273,6 +303,13 @@ private struct RecorderPanel: View {
             selection: $selected))
 }
 
+#Preview("Speaking", traits: .fixedLayout(width: 480, height: 460)) {
+    RecorderPanel(
+        phase: .ready, usesMicrophone: .constant(true), cleansVoice: .constant(true),
+        microphoneChoice: MicrophoneChoice(defaultName: "MacBook Air Microphone"),
+        inputLevel: InputLevel(level: 0.62, peak: 0.78))
+}
+
 #Preview("Recording", traits: .fixedLayout(width: 480, height: 420)) {
     RecorderPanel(phase: .recording(.now.addingTimeInterval(-28)), usesMicrophone: .constant(true), cleansVoice: .constant(true))
 }
@@ -332,5 +369,55 @@ extension MicrophoneChoice {
             missing = MicrophoneList.Microphone(id: id, name: list.rememberedName ?? "Chosen microphone")
         }
         selection = Binding(get: { list.selectedID }, set: { list.select($0) })
+    }
+}
+
+/// The meter values the panel shows.
+struct InputLevel {
+    var level: Float = 0
+    var peak: Float = 0
+    var needsAccess = false
+}
+
+extension InputLevel {
+    @MainActor
+    init(meter: InputMeter) {
+        level = meter.level
+        peak = meter.peak
+        needsAccess = meter.needsAccess
+    }
+}
+
+/// A horizontal level bar: green for normal speech, amber when loud, red near clipping.
+private struct LevelBar: View {
+    let level: Float
+    let peak: Float
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.primary.opacity(colorScheme == .dark ? 0.15 : 0.08))
+                Capsule()
+                    .fill(color(for: level))
+                    .frame(width: width * CGFloat(level))
+                if peak > 0.02 {
+                    Rectangle()
+                        .fill(color(for: peak))
+                        .frame(width: 2)
+                        .offset(x: max(0, width * CGFloat(peak) - 2))
+                }
+            }
+        }
+        .clipShape(Capsule())
+    }
+
+    /// Thresholds on the −60…0 dB scale: amber above −12 dB, red above −3 dB.
+    private func color(for value: Float) -> Color {
+        if value > 0.95 { return .red }
+        if value > 0.80 { return .orange }
+        return .green
     }
 }
