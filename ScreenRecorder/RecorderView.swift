@@ -8,6 +8,7 @@ struct RecorderView: View {
             phase: recorder.phase,
             usesMicrophone: $recorder.usesMicrophone,
             cleansVoice: $recorder.cleansVoice,
+            microphoneChoice: MicrophoneChoice(list: recorder.microphones),
             message: recorder.message,
             lastRecordingDuration: recorder.lastRecording?.duration,
             onPrimaryAction: performPrimaryAction,
@@ -30,6 +31,7 @@ private struct RecorderPanel: View {
     let phase: ScreenRecorder.Phase
     @Binding var usesMicrophone: Bool
     @Binding var cleansVoice: Bool
+    var microphoneChoice = MicrophoneChoice()
     var message: String?
     var lastRecordingDuration: TimeInterval?
     var onPrimaryAction: () -> Void = {}
@@ -68,6 +70,12 @@ private struct RecorderPanel: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+                if usesMicrophone {
+                    Divider()
+                    microphonePicker
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                }
                 Divider()
                 HStack(spacing: 12) {
                     Image(systemName: "waveform")
@@ -125,8 +133,36 @@ private struct RecorderPanel: View {
         }
         .font(.system(size: 13, weight: .medium))
         .padding(24)
-        .frame(minWidth: 460, minHeight: 392)
+        .frame(minWidth: 460, minHeight: 436)
         .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
+    }
+
+    private var microphonePicker: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "mic")
+                .foregroundStyle(.clear)
+                .accessibilityHidden(true)
+            Text("Input")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Spacer()
+            Picker("Microphone input", selection: microphoneChoice.selection) {
+                Text(microphoneChoice.defaultLabel).tag(String?.none)
+                if !microphoneChoice.available.isEmpty || microphoneChoice.missing != nil {
+                    Divider()
+                }
+                ForEach(microphoneChoice.available) { mic in
+                    Text(mic.name).tag(Optional(mic.id))
+                }
+                if let missing = microphoneChoice.missing {
+                    Text("\(missing.name) (not connected)").tag(Optional(missing.id))
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(maxWidth: 240)
+            .disabled(phase != .ready)
+        }
     }
 
     private var recordingStatus: some View {
@@ -225,9 +261,16 @@ private struct RecorderPanel: View {
     }
 }
 
-#Preview("Ready", traits: .fixedLayout(width: 480, height: 420)) {
+#Preview("Ready", traits: .fixedLayout(width: 480, height: 460)) {
     @Previewable @State var usesMicrophone = true
-    RecorderPanel(phase: .ready, usesMicrophone: $usesMicrophone, cleansVoice: .constant(true))
+    @Previewable @State var selected: String? = "headset"
+    RecorderPanel(
+        phase: .ready, usesMicrophone: $usesMicrophone, cleansVoice: .constant(true),
+        microphoneChoice: MicrophoneChoice(
+            available: [.init(id: "built-in", name: "MacBook Air Microphone")],
+            defaultName: "MacBook Air Microphone",
+            missing: .init(id: "headset", name: "USB Headset"),
+            selection: $selected))
 }
 
 #Preview("Recording", traits: .fixedLayout(width: 480, height: 420)) {
@@ -265,5 +308,29 @@ private struct RecorderButtonStyle: ButtonStyle {
             .opacity(isEnabled ? 1 : 0.55)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// What the panel needs to show the microphone menu, kept separate so previews don't need real devices.
+struct MicrophoneChoice {
+    var available: [MicrophoneList.Microphone] = []
+    var defaultName: String?
+    var missing: MicrophoneList.Microphone?
+    var selection: Binding<String?> = .constant(nil)
+
+    var defaultLabel: String {
+        defaultName.map { "Mac default (\($0))" } ?? "Mac default"
+    }
+}
+
+extension MicrophoneChoice {
+    @MainActor
+    init(list: MicrophoneList) {
+        available = list.available
+        defaultName = list.defaultName
+        if list.selectedIsMissing, let id = list.selectedID {
+            missing = MicrophoneList.Microphone(id: id, name: list.rememberedName ?? "Chosen microphone")
+        }
+        selection = Binding(get: { list.selectedID }, set: { list.select($0) })
     }
 }

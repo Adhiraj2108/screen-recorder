@@ -21,6 +21,11 @@ final class ScreenRecorder: NSObject {
         let url: URL
         let includesMicrophone: Bool
         let cleansVoice: Bool
+        /// The mic in use, so unplugging it mid-recording can be spotted.
+        let microphoneID: String?
+        let microphoneName: String?
+        /// Shown again after saving, for example when the chosen mic was missing.
+        let microphoneNotice: String?
     }
 
     // Hand the picker-owned filter to the main actor without reading or mutating it on the callback queue.
@@ -34,9 +39,28 @@ final class ScreenRecorder: NSObject {
     var usesMicrophone = true
     /// Reduce background noise and room echo, and lift the voice slightly, after each recording.
     var cleansVoice = true
+    /// The inputs the owner can pick from, and the remembered choice.
+    let microphones = MicrophoneList()
 
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var captureTimeout: Task<Void, Never>?
+    /// Set when the mic in use is unplugged during a recording.
+    @ObservationIgnored private var lostMicrophone = false
+
+    override init() {
+        super.init()
+        microphones.onDisconnect = { [weak self] id in self?.microphoneDisconnected(id) }
+    }
+
+    private func microphoneDisconnected(_ id: String) {
+        guard let capture, capture.includesMicrophone, capture.microphoneID == id, !lostMicrophone else { return }
+        switch phase {
+        case .starting, .recording: break
+        default: return
+        }
+        lostMicrophone = true
+        message = "\(capture.microphoneName ?? "The microphone") was disconnected. The screen is still recording, but the voice may be missing from this point. Stop and record again if you need the narration."
+    }
 
     func chooseSource() async {
         guard phase == .ready else { return }
@@ -108,6 +132,13 @@ final class ScreenRecorder: NSObject {
             configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
             configuration.showsCursor = true
             configuration.captureMicrophone = usesMicrophone
+            let microphone = usesMicrophone ? microphones.resolve() : nil
+            if let microphone {
+                // nil follows the Mac's default input; otherwise use the owner's remembered mic.
+                configuration.microphoneCaptureDeviceID = microphone.deviceID
+                message = microphone.notice
+            }
+            lostMicrophone = false
 
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
             let recordingConfiguration = SCRecordingOutputConfiguration()
@@ -124,7 +155,9 @@ final class ScreenRecorder: NSObject {
             let output = SCRecordingOutput(configuration: recordingConfiguration, delegate: self)
             try stream.addRecordingOutput(output)
             let capture = Capture(stream: stream, output: output, url: url, includesMicrophone: usesMicrophone,
-                                  cleansVoice: usesMicrophone && cleansVoice)
+                                  cleansVoice: usesMicrophone && cleansVoice,
+                                  microphoneID: microphone?.activeID, microphoneName: microphone?.name,
+                                  microphoneNotice: microphone?.notice)
             self.capture = capture
             scheduleTimeout(for: capture, message: "Capture didn’t start. Choose the window or display again.")
             do {
@@ -181,6 +214,12 @@ final class ScreenRecorder: NSObject {
             var warning = capture.includesMicrophone && !hasAudio
                 ? "Video saved, but it has no microphone track. Check your input before recording again."
                 : nil
+            if lostMicrophone && hasAudio {
+                warning = "Recording saved. \(capture.microphoneName ?? "The microphone") was disconnected partway through, so the voice may stop early. Choose another microphone if it isn’t plugged back in."
+            }
+            if let notice = capture.microphoneNotice {
+                warning = [notice, warning].compactMap { $0 }.joined(separator: " ")
+            }
             if capture.cleansVoice && hasAudio {
                 phase = .cleaningVoice
                 do {
@@ -217,6 +256,7 @@ final class ScreenRecorder: NSObject {
         captureTimeout?.cancel()
         captureTimeout = nil
         capture = nil
+        lostMicrophone = false
         self.message = message
         phase = .ready
     }

@@ -41,4 +41,14 @@
 
 **Other local release features:** Microphone device selection is active (see below). The input meter and a start/stop shortcut are pending. Test optional system audio separately before including it. Finish the active feature and its checks before starting another.
 
+**Microphone selection (started 17 November 2026):** A new "Input" menu under the Microphone switch lists every connected mic, plus "Mac default", which follows System Settings → Sound → Input and is used until the owner picks something else. The pick is remembered between launches by the mic's device ID (`MicrophoneList.swift`) and passed to ScreenCaptureKit as the capture device. If the remembered mic is unplugged, the menu shows it as "(not connected)", the recording uses the Mac default, and a note says so; plugging it back in makes it the input again. If the mic in use is unplugged mid-recording, the screen keeps recording, a warning appears straight away, and the saved-file message says the voice may stop early. Voice cleanup and its sync handling are unchanged, since they work on the saved file whichever mic made it.
+
+| Mic selection step | Status |
+| --- | --- |
+| Code on a branch with a PR (not merged) | Done 17 Nov. |
+| Builds on the target Mac with no warnings; app launches | Done 17 Nov. |
+| Mic list, remembered choice, relaunch, and unplugged fallback logic (tested against the Mac's real inputs: MacBook Air mic, Camo, iPhone mic) | Passed 17 Nov. Found and fixed a bug where the saved choice was cleared at every launch. |
+| Owner records a short narrated clip with a non-default mic and confirms the voice came from it, with cleanup on and in sync | Pending (needs the owner; screen capture permission can't be granted to the test tools). |
+| Owner unplugs or turns off the chosen mic before recording and during recording, and checks the notes and the saved file | Pending. |
+
 **Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete.
