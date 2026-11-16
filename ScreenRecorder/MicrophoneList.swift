@@ -41,6 +41,8 @@ final class MicrophoneList {
 
     /// Called with the device ID of any mic that goes away.
     @ObservationIgnored var onDisconnect: ((String) -> Void)?
+    /// Called when the pick changes or a mic is plugged in or out.
+    @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
     init() {
@@ -58,6 +60,7 @@ final class MicrophoneList {
                     guard let self else { return }
                     self.refresh()
                     if isDisconnect, let id { self.onDisconnect?(id) }
+                    self.onChange?()
                 }
             })
         }
@@ -78,6 +81,7 @@ final class MicrophoneList {
             defaults.removeObject(forKey: Key.id)
             defaults.removeObject(forKey: Key.name)
         }
+        onChange?()
     }
 
     /// True when a mic was chosen but is not plugged in right now.

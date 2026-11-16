@@ -36,11 +36,15 @@ final class ScreenRecorder: NSObject {
     private(set) var phase = Phase.ready
     private(set) var lastRecording: Recording?
     private(set) var message: String?
-    var usesMicrophone = true
+    var usesMicrophone = true {
+        didSet { updateMeter() }
+    }
     /// Reduce background noise and room echo, and lift the voice slightly, after each recording.
     var cleansVoice = true
     /// The inputs the owner can pick from, and the remembered choice.
     let microphones = MicrophoneList()
+    /// Live level for the mic that will be (or is being) recorded.
+    let meter = InputMeter()
 
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var captureTimeout: Task<Void, Never>?
@@ -50,6 +54,17 @@ final class ScreenRecorder: NSObject {
     override init() {
         super.init()
         microphones.onDisconnect = { [weak self] id in self?.microphoneDisconnected(id) }
+        microphones.onChange = { [weak self] in self?.updateMeter() }
+        updateMeter()
+    }
+
+    /// Point the meter at the mic in use: the recording's mic while capturing, otherwise the current pick.
+    private func updateMeter() {
+        if let capture {
+            meter.update(enabled: capture.includesMicrophone, deviceID: capture.microphoneID)
+        } else {
+            meter.update(enabled: usesMicrophone, deviceID: microphones.resolve().deviceID)
+        }
     }
 
     private func microphoneDisconnected(_ id: String) {
@@ -72,6 +87,7 @@ final class ScreenRecorder: NSObject {
                 returnToReady("Allow Screen Recorder under Privacy & Security → Microphone, or turn the microphone off to record without narration.")
                 return
             }
+            updateMeter()
         }
 
         phase = .choosingSource
@@ -159,6 +175,7 @@ final class ScreenRecorder: NSObject {
                                   microphoneID: microphone?.activeID, microphoneName: microphone?.name,
                                   microphoneNotice: microphone?.notice)
             self.capture = capture
+            updateMeter()
             scheduleTimeout(for: capture, message: "Capture didn’t start. Choose the window or display again.")
             do {
                 try await stream.startCapture()
@@ -259,6 +276,7 @@ final class ScreenRecorder: NSObject {
         lostMicrophone = false
         self.message = message
         phase = .ready
+        updateMeter()
     }
 
     private func newRecordingURL() throws -> URL {
