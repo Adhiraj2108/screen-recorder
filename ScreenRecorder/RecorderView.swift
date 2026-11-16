@@ -7,6 +7,7 @@ struct RecorderView: View {
         RecorderPanel(
             phase: recorder.phase,
             usesMicrophone: $recorder.usesMicrophone,
+            cleansVoice: $recorder.cleansVoice,
             message: recorder.message,
             lastRecordingDuration: recorder.lastRecording?.duration,
             onPrimaryAction: performPrimaryAction,
@@ -28,6 +29,7 @@ struct RecorderView: View {
 private struct RecorderPanel: View {
     let phase: ScreenRecorder.Phase
     @Binding var usesMicrophone: Bool
+    @Binding var cleansVoice: Bool
     var message: String?
     var lastRecordingDuration: TimeInterval?
     var onPrimaryAction: () -> Void = {}
@@ -63,6 +65,26 @@ private struct RecorderPanel: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                         .disabled(phase != .ready)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                Divider()
+                HStack(spacing: 12) {
+                    Image(systemName: "waveform")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Clean up voice")
+                        Text("Less background noise and echo, slightly louder")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityHidden(true)
+                    Spacer()
+                    Toggle("Clean up voice", isOn: $cleansVoice)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(phase != .ready || !usesMicrophone)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -103,7 +125,7 @@ private struct RecorderPanel: View {
         }
         .font(.system(size: 13, weight: .medium))
         .padding(24)
-        .frame(minWidth: 460, minHeight: 328)
+        .frame(minWidth: 460, minHeight: 392)
         .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
     }
 
@@ -178,6 +200,7 @@ private struct RecorderPanel: View {
         case .starting: "Starting…"
         case .recording: "Stop recording"
         case .saving: "Saving…"
+        case .cleaningVoice: "Cleaning up voice…"
         }
     }
 
@@ -189,6 +212,7 @@ private struct RecorderPanel: View {
         case .starting: "Preparing capture"
         case .recording: "Recording"
         case .saving: "Finishing the MP4"
+        case .cleaningVoice: "Cleaning up the voice"
         }
     }
 
@@ -201,23 +225,24 @@ private struct RecorderPanel: View {
     }
 }
 
-#Preview("Ready", traits: .fixedLayout(width: 480, height: 360)) {
+#Preview("Ready", traits: .fixedLayout(width: 480, height: 420)) {
     @Previewable @State var usesMicrophone = true
-    RecorderPanel(phase: .ready, usesMicrophone: $usesMicrophone)
+    RecorderPanel(phase: .ready, usesMicrophone: $usesMicrophone, cleansVoice: .constant(true))
 }
 
-#Preview("Recording", traits: .fixedLayout(width: 480, height: 360)) {
-    RecorderPanel(phase: .recording(.now.addingTimeInterval(-28)), usesMicrophone: .constant(true))
+#Preview("Recording", traits: .fixedLayout(width: 480, height: 420)) {
+    RecorderPanel(phase: .recording(.now.addingTimeInterval(-28)), usesMicrophone: .constant(true), cleansVoice: .constant(true))
 }
 
-#Preview("Saved", traits: .fixedLayout(width: 480, height: 360)) {
-    RecorderPanel(phase: .ready, usesMicrophone: .constant(true), lastRecordingDuration: 62)
+#Preview("Saved", traits: .fixedLayout(width: 480, height: 420)) {
+    RecorderPanel(phase: .ready, usesMicrophone: .constant(true), cleansVoice: .constant(true), lastRecordingDuration: 62)
 }
 
-#Preview("Permission denied", traits: .fixedLayout(width: 480, height: 360)) {
+#Preview("Permission denied", traits: .fixedLayout(width: 480, height: 420)) {
     RecorderPanel(
         phase: .ready,
         usesMicrophone: .constant(true),
+        cleansVoice: .constant(true),
         message: "Allow Screen Recorder under Privacy & Security → Microphone, or turn the microphone off to record without narration."
     )
 }

@@ -7,7 +7,7 @@ import ScreenCaptureKit
 @Observable
 final class ScreenRecorder: NSObject {
     enum Phase: Equatable {
-        case ready, requestingMicrophone, choosingSource, starting, recording(Date), saving
+        case ready, requestingMicrophone, choosingSource, starting, recording(Date), saving, cleaningVoice
     }
 
     struct Recording {
@@ -20,6 +20,7 @@ final class ScreenRecorder: NSObject {
         let output: SCRecordingOutput
         let url: URL
         let includesMicrophone: Bool
+        let cleansVoice: Bool
     }
 
     // Hand the picker-owned filter to the main actor without reading or mutating it on the callback queue.
@@ -31,6 +32,8 @@ final class ScreenRecorder: NSObject {
     private(set) var lastRecording: Recording?
     private(set) var message: String?
     var usesMicrophone = true
+    /// Reduce background noise and room echo, and lift the voice slightly, after each recording.
+    var cleansVoice = true
 
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var captureTimeout: Task<Void, Never>?
@@ -120,7 +123,8 @@ final class ScreenRecorder: NSObject {
 
             let output = SCRecordingOutput(configuration: recordingConfiguration, delegate: self)
             try stream.addRecordingOutput(output)
-            let capture = Capture(stream: stream, output: output, url: url, includesMicrophone: usesMicrophone)
+            let capture = Capture(stream: stream, output: output, url: url, includesMicrophone: usesMicrophone,
+                                  cleansVoice: usesMicrophone && cleansVoice)
             self.capture = capture
             scheduleTimeout(for: capture, message: "Capture didn’t start. Choose the window or display again.")
             do {
@@ -174,10 +178,19 @@ final class ScreenRecorder: NSObject {
 
             let hasAudio = try await !asset.loadTracks(withMediaType: .audio).isEmpty
             guard self.capture?.output === capture.output else { return }
-            lastRecording = Recording(url: capture.url, duration: duration)
-            let warning = capture.includesMicrophone && !hasAudio
+            var warning = capture.includesMicrophone && !hasAudio
                 ? "Video saved, but it has no microphone track. Check your input before recording again."
                 : nil
+            if capture.cleansVoice && hasAudio {
+                phase = .cleaningVoice
+                do {
+                    try await VoiceCleanup.apply(to: capture.url)
+                } catch {
+                    warning = "Recording saved with the original sound. Voice cleanup didn’t finish. \(error.localizedDescription)"
+                }
+                guard self.capture?.output === capture.output else { return }
+            }
+            lastRecording = Recording(url: capture.url, duration: duration)
             returnToReady(warning)
         } catch {
             guard self.capture?.output === capture.output else { return }
@@ -246,7 +259,7 @@ extension ScreenRecorder: SCStreamDelegate {
         let streamID = ObjectIdentifier(stream)
         Task { @MainActor [weak self] in
             guard let self, let capture = self.capture, ObjectIdentifier(capture.stream) == streamID,
-                  self.phase != .saving else { return }
+                  self.phase != .saving, self.phase != .cleaningVoice else { return }
             self.phase = .saving
             self.scheduleTimeout(for: capture, message: "Screen capture ended before the file could be saved. \(error.localizedDescription)")
         }
