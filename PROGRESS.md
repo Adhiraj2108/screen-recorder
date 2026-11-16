@@ -4,7 +4,7 @@
 
 **Status:** Incomplete. No milestone has been closed.
 
-**Active feature:** Capture blocked and recovery check (owner test pending), then optional system audio.
+**Active feature:** Optional system audio (the capture blocked and recovery check passed).
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -23,7 +23,7 @@
 | --- | --- |
 | Save and replay one short narrated sample using the agreed format | Passed 16 Nov 2026 (H.264/AAC, owner checked text, scrolling, and speech). |
 | Try a real website and a dense Figma file | Passed at 1-minute length on 16 Nov 2026 (owner decision). A long run is in the final checks below. |
-| Capture blocked and recovery (changed by owner, 16 Nov; see Decisions) | (2) Microphone access off, note shown, back on and recording works: passed 16 Nov 2026 (owner). (1) Cancel the picker, app returns to Ready, next Record works: pending owner test. |
+| Capture blocked and recovery (changed by owner, 16 Nov; see Decisions) | (2) Microphone access off, note shown, back on and recording works: passed 16 Nov 2026 (owner). (1) Cancel the picker, app returns to Ready, next Record works: passed 16 Nov 2026 using Esc (owner). The Cancel button can't be clicked because the macOS picker covers the app window, so the status text now says "Esc cancels". |
 
 **Final checks before wrap-up.** Every item here must pass before Milestone 1 closes. They are saved for the end because they are long or heavy, not because they are optional.
 
