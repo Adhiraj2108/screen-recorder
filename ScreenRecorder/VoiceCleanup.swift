@@ -61,14 +61,14 @@ enum VoiceCleanup {
 
         // 2. Clean it up into uncompressed audio, so no encoder delay creeps in yet.
         let cleaned = workFolder.appending(path: "cleaned.caf")
-        let channelCount = try process(from: decoded, to: cleaned)
+        let cleanedFormat = try process(from: decoded, to: cleaned)
         try? FileManager.default.removeItem(at: decoded)
 
         // 3. Write a new MP4: the video samples copied exactly, the cleaned audio encoded once to AAC from time zero.
         let result = url.deletingLastPathComponent()
             .appending(path: ".\(UUID().uuidString)-cleaned.mp4", directoryHint: .notDirectory)
         defer { try? FileManager.default.removeItem(at: result) }
-        try await remux(video: originalVideo, of: original, cleanedAudio: cleaned, channelCount: channelCount, to: result)
+        try await remux(video: originalVideo, of: original, cleanedAudio: cleaned, format: cleanedFormat, to: result)
 
         // 4. Only replace the original once the new file checks out.
         let check = AVURLAsset(url: result)
@@ -118,7 +118,8 @@ enum VoiceCleanup {
         guard reader.status == .completed else { throw reader.error ?? CleanupError.renderFailed }
     }
 
-    private static func remux(video videoTrack: AVAssetTrack, of original: AVAsset, cleanedAudio: URL, channelCount: Int, to url: URL) async throws {
+    private static func remux(video videoTrack: AVAssetTrack, of original: AVAsset, cleanedAudio: URL, format: AVAudioFormat, to url: URL) async throws {
+        let channelCount = Int(format.channelCount)
         let videoReader = try AVAssetReader(asset: original)
         let videoOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
         videoOutput.alwaysCopiesSampleData = false
@@ -145,7 +146,7 @@ enum VoiceCleanup {
         videoInput.expectsMediaDataInRealTime = false
         let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: try await audioTrack.load(.naturalTimeScale),
+            AVSampleRateKey: format.sampleRate,
             AVNumberOfChannelsKey: channelCount,
             AVEncoderBitRateKey: bitRatePerChannel * channelCount,
         ])
@@ -196,8 +197,8 @@ enum VoiceCleanup {
     }
 
     /// Runs the recording's audio through the cleanup chain faster than real time and writes it as uncompressed audio.
-    /// Returns the channel count.
-    private static func process(from inputURL: URL, to outputURL: URL) throws -> Int {
+    /// Returns the audio format (sample rate and channel count) of the cleaned file.
+    private static func process(from inputURL: URL, to outputURL: URL) throws -> AVAudioFormat {
         let input = try AVAudioFile(forReading: inputURL)
         let format = input.processingFormat
         let output = try AVAudioFile(
@@ -282,7 +283,7 @@ enum VoiceCleanup {
                 throw CleanupError.renderFailed
             }
         }
-        return Int(format.channelCount)
+        return format
     }
 
     private static func write(_ buffer: AVAudioPCMBuffer, droppingFirst skip: AVAudioFrameCount, to file: AVAudioFile) throws {
