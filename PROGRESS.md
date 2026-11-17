@@ -86,7 +86,8 @@
 | Milestone 2 step | Status |
 | --- | --- |
 | Step 1: local owner-only page, database, share links | Built 17 Nov. 29 automatic checks pass on the Mac (sign-in, wrong key refused, other-site requests refused, forged cookie refused, links opaque, revoked and deleted links 404). Owner tried the three steps in a browser on 17 Nov and they worked. There is deliberately no upload box yet; upload arrives in steps 2 and 3. |
-| Step 2: Cloudflare account, upload and private playback with signed tokens | Not started; needs the Cloudflare account decisions. |
+| Step 2a: Cloudflare setup | Done 17 Nov 2026 with `wrangler login` on the owner's Mac (the installed Cloudflare connector wasn't reachable from the session and doesn't cover Stream). Database `recorder-db` and Worker `recorder-web` created, schema applied, separate production owner key set, preview URLs off, and the same 29 checks pass against the live address https://recorder-web.rae-social-agency.workers.dev. Everything uses the "recorder-" prefix so it stays apart from the owner's other Cloudflare items. |
+| Step 2b: upload and private playback with signed tokens (Cloudflare Stream) | Not started. Needs the owner's explicit OK to enable Stream billing (about $5 per 1,000 stored minutes and $1 per 1,000 delivered minutes). The Worker types include a Stream binding that makes direct uploads and playback tokens, so no access key is needed in the code. |
 | Step 3: Upload button in the app, branded viewing page with fullscreen and speed | Not started. |
 | Milestone 2 acceptance (Safari, Chrome, phone on mobile data with the Mac offline; direct playback without a token denied) | Not started. |
 

@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 
 const base = process.env.BASE_URL ?? "http://localhost:8787";
-const key = readFileSync(new URL("../.dev.vars", import.meta.url), "utf8").match(/^OWNER_KEY=(.+)$/m)?.[1];
+const key = readFileSync(new URL("../" + (process.env.KEY_FILE ?? ".dev.vars"), import.meta.url), "utf8").match(/^OWNER_KEY=(.+)$/m)?.[1];
 if (!key) throw new Error("No OWNER_KEY in .dev.vars");
 
 let failures = 0;

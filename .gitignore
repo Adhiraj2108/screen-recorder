@@ -28,3 +28,5 @@ dist/
 # Cloudflare Worker secrets for local runs
 .dev.vars
 web/.dev.vars
+.prod.vars
+web/.prod.vars
