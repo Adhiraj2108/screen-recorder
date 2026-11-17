@@ -2,9 +2,9 @@
 
 ## Milestone 1 · Local recording
 
-**Status:** Incomplete. No milestone has been closed.
+**Status:** Incomplete (waits on the Final checks below). Milestones 2 and 3 are closed.
 
-**Active:** Milestone 2 (one hosted video). Milestones 1 (features), 2 and 3 are done. Milestone 4 (pilot on a real project) is next, with the Final checks list still open. Milestone 1 is feature-complete and merged (format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound), but it is NOT closed: the "Final checks before wrap-up" below are deferred to the end of the whole app build and must pass before the app is called finished.
+**Active:** Milestone 4 (pilot on a real project), started 17 November 2026. Milestones 2 and 3 are closed. Milestone 1 is feature-complete and merged (format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound), but it is NOT closed: the "Final checks before wrap-up" below are deferred to the end of the whole app build and must pass before the app is called finished.
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -111,6 +111,17 @@
 **Milestone 3 status: closed on 17 November 2026 by the owner's decision** ("I'll run the wifi test later. Let's close Milestone 3."). The one-minute physical Wi-Fi-off upload test moves to the Final checks list below; the relay blackout test is the evidence until then.
 
 **Milestone 3 (dependable solo workflow), built before testing:** resume after a dropped connection or a restart without duplicates, switching a link off, and delete removing the stored file are built and tested in code. What remains is the owner's hands-on checks: disconnect Wi-Fi mid-upload and confirm it resumes with the local file intact and one video; relaunch the app mid-upload and recover; revoke a link and confirm a fresh browser cannot play it; and confirm what delete removes (the stored file and links online; the Mac file stays). Playback addresses last 30 minutes but are re-checked against the link on every request, so switching a link off ends playback immediately, better than the brief's "valid until expiry".
+
+**Milestone 4 · Pilot (started 17 November 2026):** The owner uses the app on one real project. Prep done without the owner: [GUIDE.md](GUIDE.md) (launch, update, recovery, lost key, lost Mac, space and cost) and [PILOT.md](PILOT.md) (before, during and after checklist, the questions to answer, and the limits known going in).
+
+| Milestone 4 check | Status |
+| --- | --- |
+| Short guide for launching, updating and recovering the app | Written 17 Nov 2026 (GUIDE.md). Owner to read and say if anything is unclear. |
+| Use the app on a real project | Pending owner (owner picks the project; real client footage only with their OK). |
+| Review speed, audio and text quality | Pending owner (answers go in the PILOT.md table). |
+| Client opened the link without help | Pending owner. |
+| Record remaining limits | Draft list in PILOT.md; finalised after the pilot. |
+| Open decision: should delete also erase the video's title record? | Pending owner. Recommended yes, for confidential titles. |
 
 **Later list (not in the current milestone):** branded viewing page and redesign (name, logo, colours); in-app gain control; cleaned voice together with Mac sound (needs separate audio tracks); Stream for chosen long videos if slow connections struggle; custom domain for share links.
 
