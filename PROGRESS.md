@@ -85,7 +85,7 @@
 
 | Milestone 2 step | Status |
 | --- | --- |
-| Step 1: local owner-only page, database, share links | Built 17 Nov. 29 automatic checks pass on the Mac (sign-in, wrong key refused, other-site requests refused, forged cookie refused, links opaque, revoked and deleted links 404). Owner trying it in a browser: pending. |
+| Step 1: local owner-only page, database, share links | Built 17 Nov. 29 automatic checks pass on the Mac (sign-in, wrong key refused, other-site requests refused, forged cookie refused, links opaque, revoked and deleted links 404). Owner tried the three steps in a browser on 17 Nov and they worked. There is deliberately no upload box yet; upload arrives in steps 2 and 3. |
 | Step 2: Cloudflare account, upload and private playback with signed tokens | Not started; needs the Cloudflare account decisions. |
 | Step 3: Upload button in the app, branded viewing page with fullscreen and speed | Not started. |
 | Milestone 2 acceptance (Safari, Chrome, phone on mobile data with the Mac offline; direct playback without a token denied) | Not started. |

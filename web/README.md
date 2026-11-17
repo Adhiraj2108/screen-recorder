@@ -15,6 +15,8 @@ Open http://localhost:8787. Sign in with the key in `web/.dev.vars` (the text af
 
 ## What exists now
 
+There is deliberately **no upload box yet**. This step only manages video records and share links. Uploading starts in step 2 (Cloudflare Stream) and gets its button in the app in step 3. Until then the share page says the video will play once it's uploaded.
+
 - Owner page: sign in, add/rename/delete videos, create share links (with an optional Figma or staging link), copy them, switch them off.
 - Share links: `/s/<random token>`. Unknown, switched-off and deleted all show the same "not available" page.
 - Owner-only API under `/api/*`. It accepts the signed session cookie, or `Authorization: Bearer <key>` for scripts.
