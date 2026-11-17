@@ -3,9 +3,12 @@ import Observation
 
 /// Sends a finished recording to the owner's hosting server and returns a share link.
 ///
-/// Uploading is always the owner's explicit action. The saved recording is never changed or removed: a separate copy
-/// (with its index at the front, so it starts playing quickly) is what gets uploaded. If the connection drops or the
-/// app is closed, the unfinished upload is remembered and carries on from the last part that arrived.
+/// With "Upload automatically" on (the default), a finished recording starts uploading by itself; otherwise the owner
+/// presses Upload. The saved recording is never changed by uploading: a separate copy (with its index at the front, so
+/// it starts playing quickly) is what gets uploaded. If the connection drops or the app is closed, the unfinished
+/// upload is remembered and carries on from the last part that arrived. Once the server confirms it holds the whole
+/// file, the link is made and copied, and the upload is added to the `UploadLibrary` (which may later move the local
+/// file to the Trash, see there for the safety rules).
 @MainActor
 @Observable
 final class Publisher {
@@ -14,7 +17,7 @@ final class Publisher {
         case preparing
         case uploading(Double)
         case finishing
-        case done(URL)
+        case done(URL, videoID: String)
         case failed(String)
     }
 
@@ -29,6 +32,7 @@ final class Publisher {
     static let defaultServer = "https://recorder-web.rae-social-agency.workers.dev"
     private static let pendingKey = "pendingUpload"
     private static let serverKey = "sharingServerURL"
+    private static let autoUploadKey = "autoUploadRecordings"
 
     private(set) var state = State.idle
     private(set) var hasKey = OwnerKeychain.read() != nil
@@ -37,6 +41,17 @@ final class Publisher {
     var title = ""
     /// True when an earlier upload of this recording stopped part way.
     private(set) var hasUnfinishedUpload = false
+    /// The result of the last delete, shown in the Share area.
+    var notice: String?
+    /// Recordings that finished while another upload was running; they upload one after another.
+    private(set) var queued: [URL] = []
+
+    let library = UploadLibrary()
+
+    /// Start uploading as soon as a recording is saved. A visible switch in the app.
+    var autoUpload: Bool {
+        didSet { UserDefaults.standard.set(autoUpload, forKey: Self.autoUploadKey) }
+    }
 
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var pending: Pending?
@@ -53,7 +68,12 @@ final class Publisher {
         }
     }
 
+    var api: SharingAPI? {
+        OwnerKeychain.read().map { SharingAPI(baseURL: serverURL, key: $0) }
+    }
+
     init() {
+        autoUpload = UserDefaults.standard.object(forKey: Self.autoUploadKey) as? Bool ?? true
         if let data = UserDefaults.standard.data(forKey: Self.pendingKey),
            let saved = try? JSONDecoder().decode(Pending.self, from: data),
            FileManager.default.fileExists(atPath: saved.recordingPath) {
@@ -62,16 +82,24 @@ final class Publisher {
             title = saved.title
             hasUnfinishedUpload = true
         }
+        library.startCleanup { [weak self] in self?.api }
+        // An upload that was cut off when the app last closed carries on by itself.
+        if hasUnfinishedUpload, autoUpload, hasKey { upload() }
     }
 
-    /// Called when a new recording is saved, so the panel offers to upload it.
+    /// Called when a new recording is saved: shows it in the Share area and, with auto-upload on, starts uploading.
     func offer(_ url: URL) {
-        guard !isBusy else { return }
+        if isBusy || (hasUnfinishedUpload && pending?.recordingPath != url.path) {
+            // Something else is uploading (or waiting to be resumed). Queue this one so it isn't forgotten.
+            if autoUpload, !queued.contains(url) { queued.append(url) }
+            return
+        }
         if let pending, pending.recordingPath == url.path { return }
         recordingURL = url
         state = .idle
         hasUnfinishedUpload = false
         title = Self.defaultTitle(for: url)
+        if autoUpload, hasKey { upload() }
     }
 
     func saveKey(_ key: String) async {
@@ -93,6 +121,7 @@ final class Publisher {
         }
         hasKey = true
         state = .idle
+        if autoUpload, let recordingURL, library.entry(forRecording: recordingURL) == nil { upload() }
     }
 
     func forgetKey() {
@@ -101,6 +130,7 @@ final class Publisher {
     }
 
     func upload() {
+        notice = nil
         guard !isBusy, let recordingURL, let key = OwnerKeychain.read() else { return }
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else {
@@ -115,14 +145,14 @@ final class Publisher {
         state = .preparing
         task = Task { [weak self] in
             do {
-                let link = try await Self.run(job: startingJob, api: api, onChange: { updated in
+                let (link, videoID, onlineBytes) = try await Self.run(job: startingJob, api: api, onChange: { updated in
                     self?.remember(updated)
                 }, onProgress: { fraction in
                     self?.state = .uploading(fraction)
                 }, onFinishing: {
                     self?.state = .finishing
                 })
-                self?.finished(link: link, job: startingJob)
+                self?.finished(link: link, videoID: videoID, onlineBytes: onlineBytes, job: startingJob)
             } catch is CancellationError {
                 self?.state = .failed("Paused. Press Resume to carry on where it stopped.")
             } catch {
@@ -144,6 +174,37 @@ final class Publisher {
         }
         clearPending()
         state = .idle
+        startNextQueued()
+    }
+
+    /// Deletes an uploaded video online (its file, links and record). With `alsoLocal`, the recording on this Mac goes
+    /// to the Trash too, where it can still be put back.
+    func deleteUploaded(videoID: String, alsoLocal: Bool) async {
+        guard let api = api?.quick else {
+            notice = "Connect with the owner key first."
+            return
+        }
+        do {
+            try await api.deleteVideo(videoID: videoID)
+        } catch {
+            notice = "The video couldn’t be deleted online, so nothing was removed. \(error.localizedDescription)"
+            return
+        }
+        var note = "Deleted online. The link no longer works."
+        if alsoLocal {
+            note = library.trashLocal(videoID: videoID)
+                ? "Deleted online, and the recording was moved to the Trash."
+                : "Deleted online. The recording on this Mac couldn’t be moved to the Trash, so it’s still in Movies."
+        } else {
+            note += " The recording is still in Movies."
+        }
+        let recording = library.entries.first { $0.videoID == videoID }?.recordingPath
+        library.remove(videoID: videoID)
+        if case let .done(_, shown) = state, shown == videoID {
+            state = .idle
+            if alsoLocal, recordingURL?.path == recording { recordingURL = nil }
+        }
+        notice = note
     }
 
     func copyLink(_ url: URL) {
@@ -159,7 +220,7 @@ final class Publisher {
         onChange: @MainActor @Sendable (Pending) -> Void,
         onProgress: @MainActor @Sendable (Double) -> Void,
         onFinishing: @MainActor @Sendable () -> Void
-    ) async throws -> URL {
+    ) async throws -> (URL, String, Int) {
         var job = startingJob
         let original = URL(fileURLWithPath: job.recordingPath)
         let copy = URL(fileURLWithPath: job.copyPath)
@@ -200,7 +261,16 @@ final class Publisher {
             try await api.completeUpload(videoID: videoID)
         }
         await onFinishing()
-        return try await api.createShare(videoID: videoID)
+
+        // 4. Confirm the server holds the whole file before treating the upload as done. Only confirmed uploads are
+        //    ever eligible for the local clean-up.
+        let online = try await api.uploadState(of: videoID)
+        guard online.status == "ready", online.sizeBytes == size else {
+            throw SharingAPI.APIError(
+                message: "The upload couldn’t be confirmed (the server has \(online.sizeBytes ?? 0) of \(size) bytes). Press Resume to try again.",
+                status: nil)
+        }
+        return (try await api.createShare(videoID: videoID), videoID, size)
     }
 
     private func remember(_ job: Pending) {
@@ -209,11 +279,31 @@ final class Publisher {
         if let data = try? JSONEncoder().encode(job) { UserDefaults.standard.set(data, forKey: Self.pendingKey) }
     }
 
-    private func finished(link: URL, job: Pending) {
+    private func finished(link: URL, videoID: String, onlineBytes: Int, job: Pending) {
         try? FileManager.default.removeItem(atPath: job.copyPath)
         clearPending()
+        let local = URL(fileURLWithPath: job.recordingPath)
+        let facts = UploadLibrary.fileFacts(local)
+        library.add(.init(
+            videoID: videoID, title: job.title, recordingPath: job.recordingPath, shareURL: link, uploadedAt: .now,
+            onlineBytes: onlineBytes, localBytes: facts.bytes, localModified: facts.modified))
         copyLink(link)
-        state = .done(link)
+        state = .done(link, videoID: videoID)
+        startNextQueued()
+    }
+
+    /// Uploads the next recording that finished while this one was uploading. The panel moves on to it.
+    private func startNextQueued() {
+        guard autoUpload, hasKey else { return }
+        while let next = queued.first {
+            queued.removeFirst()
+            guard FileManager.default.fileExists(atPath: next.path), library.entry(forRecording: next) == nil else { continue }
+            recordingURL = next
+            title = Self.defaultTitle(for: next)
+            hasUnfinishedUpload = false
+            upload()
+            return
+        }
     }
 
     private func clearPending() {

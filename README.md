@@ -1,6 +1,6 @@
 # Screen Recorder
 
-A native macOS app for recording narrated walkthroughs. The current build saves recordings locally. The [product brief](BRIEF.md) defines the release scope and the [progress record](PROGRESS.md) tracks the current milestone and its checks. The [owner guide](GUIDE.md) covers launching, updating and recovering the app, and the [pilot checklist](PILOT.md) covers the first real project.
+A native macOS app for recording narrated walkthroughs. It saves recordings locally, uploads them to the owner's Cloudflare-hosted page (automatically by default) and copies a share link. The [product brief](BRIEF.md) defines the release scope and the [progress record](PROGRESS.md) tracks the current milestone and its checks. The [owner guide](GUIDE.md) covers launching, updating and recovering the app, and the [pilot checklist](PILOT.md) covers the first real project.
 
 ## First milestone: reliable capture
 
