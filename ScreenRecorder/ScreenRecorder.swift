@@ -50,6 +50,8 @@ final class ScreenRecorder: NSObject {
     let microphones = MicrophoneList()
     /// Live level for the mic that will be (or is being) recorded.
     let meter = InputMeter()
+    /// Sends a finished recording to the hosting server (always an explicit action by the owner).
+    let publisher = Publisher()
     /// True when the system-wide start/stop shortcut is active (false if another app owns it).
     private(set) var shortcutAvailable = false
     @ObservationIgnored private var shortcut: GlobalShortcut?
@@ -277,6 +279,7 @@ final class ScreenRecorder: NSObject {
                 guard self.capture?.output === capture.output else { return }
             }
             lastRecording = Recording(url: capture.url, duration: duration)
+            publisher.offer(capture.url)
             returnToReady(warning)
         } catch {
             guard self.capture?.output === capture.output else { return }
