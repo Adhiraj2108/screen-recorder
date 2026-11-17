@@ -4,7 +4,7 @@
 
 **Status:** Incomplete. No milestone has been closed.
 
-**Active feature:** Optional system audio ("Record Mac sound" switch). The capture-blocked and recovery check passed.
+**Active:** Final checks before wrap-up (below). All Milestone 1 features are built and merged: format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound.
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -32,7 +32,8 @@
 | Record and replay a 45-minute sample using the usual mic or headset | Pending (deferred by owner, 16 Nov). Check for readable text, intelligible speech, and no drift near the start and end. Voice cleanup must finish on the long file. |
 | Long real-work session: a website and a dense Figma file over a long recording, with scrolling and zooming | Pending. Check that text stays readable and the app stays responsive. |
 | Heavy load: record while the Mac is busy (many browser tabs, Figma, a video call or other heavy app) | Pending. Check for dropped frames, stutter, and audio drift. |
-| Microphone selection over a long recording with the chosen headset or external mic | Pending, after the mic selection feature passes its short tests. |
+| Microphone selection over a long recording with the chosen headset or external mic | Pending (mic selection itself passed its short tests). |
+| Mac sound on for a longer recording with a real video playing and narration | Pending. Check sync and that the voice stays clear. |
 
 **Audio feature (added 16 November 2026):** Clean up the narration without taking anything away. The owner asked for less background noise and room echo, plus small safe quality gains. ScreenCaptureKit has no noise or echo setting for its microphone capture, so the app now cleans the saved file right after recording (`VoiceCleanup.swift`): Apple's voice isolation (high-quality voice model), an 80 Hz rumble filter, a 2 dB level boost (about 25% louder) with a peak limiter 1 dB below full scale, and AAC at 96 kbps per channel instead of about 53. The video is copied untouched, the cleaned audio goes back at the original start time with the isolation delay removed, and the original file is kept if any step fails. The narration is decoded on the video's timeline from time zero, so ScreenCaptureKit's lead-in offset (about 0.38 s) becomes silence and sync holds. A "Clean up voice" switch (on by default) lets the owner compare. Video stays H.264 at 30 fps.
 
@@ -78,6 +79,6 @@
 | Code on a branch with a PR (not merged) | Done 17 Nov. |
 | Builds on the target Mac with no warnings | Done 17 Nov. |
 | Owner records with the switch on while a beep plays and they talk | Done 16 Nov: owner reported it "sounds right". The saved file (checked with ffprobe) has one stereo AAC track with the beep and the voice both in it, which showed macOS mixes them. |
-| Owner re-tests after the simplification: no orange banner, "Clean up voice" greys out with the switch on, and a recording with the switch off still gets cleanup | Pending (needs the owner). |
+| Owner re-tests after the simplification | Merged to main 17 Nov 2026 on the owner's written approval after the re-test steps; the owner didn't report separate results, so a quick look at the greyed-out switch is covered in the final checks. |
 
 **Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete. On 16 November 2026 the owner changed the "deny screen capture and recover" check. The app uses Apple's content picker, which grants access one recording at a time, so it never appears under Screen & System Audio Recording and that permission can't be denied (the owner confirmed it isn't listed and recording still works). The replacement check covers the two blocks that can happen: canceling the picker, and turning Microphone access off and back on.
