@@ -15,7 +15,7 @@ Open http://localhost:8787. Sign in with the key in `web/.dev.vars` (the text af
 
 ## The live copy on Cloudflare
 
-Deployed as the Worker `recorder-web` with its own database `recorder-db` (the "recorder-" prefix keeps it apart from other things on the account) at https://recorder-web.rae-social-agency.workers.dev. Its owner key is separate from the local one and lives in the Worker's secrets plus `web/.prod.vars` on the Mac (uncommitted). Publish changes with `npx wrangler deploy` from `web/` (after `npm run db:remote` if the schema changed).
+Deployed as the Worker `recorder-web` with its own database `recorder-db` and private bucket `recorder-videos` (the "recorder-" prefix keeps it apart from other things on the account) at https://recorder-web.rae-social-agency.workers.dev. Its owner key is separate from the local one and lives in the Worker's secrets plus `web/.prod.vars` on the Mac (uncommitted). Publish changes with `npx wrangler deploy` from `web/` (after `npm run db:remote` if the schema changed).
 
 ## What exists now
 
