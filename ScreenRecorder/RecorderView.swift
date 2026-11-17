@@ -85,7 +85,9 @@ private struct RecorderPanel: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Clean up voice")
-                        Text("Less background noise and echo, slightly louder")
+                        Text(recordsSystemSound && usesMicrophone
+                             ? "Off while Mac sound is on (macOS saves both together)"
+                             : "Less background noise and echo, slightly louder")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -94,7 +96,7 @@ private struct RecorderPanel: View {
                     Toggle("Clean up voice", isOn: $cleansVoice)
                         .toggleStyle(.switch)
                         .labelsHidden()
-                        .disabled(phase != .ready || !usesMicrophone)
+                        .disabled(phase != .ready || !usesMicrophone || recordsSystemSound)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
