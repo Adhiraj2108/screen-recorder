@@ -21,6 +21,8 @@ final class ScreenRecorder: NSObject {
         let url: URL
         let includesMicrophone: Bool
         let cleansVoice: Bool
+        /// macOS saves the Mac's sound and the voice together as one track.
+        let includesSystemSound: Bool
         /// The mic in use, so unplugging it mid-recording can be spotted.
         let microphoneID: String?
         let microphoneName: String?
@@ -39,6 +41,9 @@ final class ScreenRecorder: NSObject {
     var usesMicrophone = true {
         didSet { updateMeter() }
     }
+    /// Also record the Mac's own sound (a video, a prototype's audio). macOS mixes it with the voice into one track,
+    /// so voice cleanup, which needs the voice on its own, is not applied while this is on.
+    var recordsSystemSound = false
     /// Reduce background noise and room echo, and lift the voice slightly, after each recording.
     var cleansVoice = true
     /// The inputs the owner can pick from, and the remembered choice.
@@ -164,6 +169,11 @@ final class ScreenRecorder: NSObject {
             configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
             configuration.showsCursor = true
             configuration.captureMicrophone = usesMicrophone
+            // The Mac's sound, without this app's own sounds. macOS mixes it with the microphone into one track.
+            configuration.capturesAudio = recordsSystemSound
+            configuration.excludesCurrentProcessAudio = true
+            configuration.sampleRate = 48_000
+            configuration.channelCount = 2
             let microphone = usesMicrophone ? microphones.resolve() : nil
             if let microphone {
                 // nil follows the Mac's default input; otherwise use the owner's remembered mic.
@@ -187,7 +197,8 @@ final class ScreenRecorder: NSObject {
             let output = SCRecordingOutput(configuration: recordingConfiguration, delegate: self)
             try stream.addRecordingOutput(output)
             let capture = Capture(stream: stream, output: output, url: url, includesMicrophone: usesMicrophone,
-                                  cleansVoice: usesMicrophone && cleansVoice,
+                                  cleansVoice: usesMicrophone && cleansVoice && !recordsSystemSound,
+                                  includesSystemSound: recordsSystemSound,
                                   microphoneID: microphone?.activeID, microphoneName: microphone?.name,
                                   microphoneNotice: microphone?.notice)
             self.capture = capture
@@ -244,9 +255,12 @@ final class ScreenRecorder: NSObject {
 
             let hasAudio = try await !asset.loadTracks(withMediaType: .audio).isEmpty
             guard self.capture?.output === capture.output else { return }
-            var warning = capture.includesMicrophone && !hasAudio
+            var warning = capture.includesMicrophone && !capture.includesSystemSound && !hasAudio
                 ? "Video saved, but it has no microphone track. Check your input before recording again."
                 : nil
+            if capture.includesSystemSound && !hasAudio {
+                warning = "Video saved, but it has no sound. Check your input and that something was playing."
+            }
             if lostMicrophone && hasAudio {
                 warning = "Recording saved. \(capture.microphoneName ?? "The microphone") was disconnected partway through, so the voice may stop early. Choose another microphone if it isn’t plugged back in."
             }

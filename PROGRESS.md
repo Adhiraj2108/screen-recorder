@@ -4,7 +4,7 @@
 
 **Status:** Incomplete. No milestone has been closed.
 
-**Active feature:** Optional system audio (the capture blocked and recovery check passed).
+**Active feature:** Optional system audio ("Record Mac sound" switch). The capture-blocked and recovery check passed.
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -42,7 +42,7 @@
 | App builds on the target Mac; cleanup tested on a copy of the 16 Nov clip (sync, loudness, peaks) | Done 16 Nov on the Mac. Builds. 47 s clip cleaned in 2.4 s; video stream byte-identical; voice in sync within 1 ms at start and end; loudness −32.2 → −30.5 LUFS, true peak −13.5 → −10.9 dBFS; AAC about 140 kbps. A 9.4-minute file took 26 s with no drift. |
 | Owner compares a new short clip in a normal room with cleanup on and off | Passed 16 Nov 2026: owner confirmed it sounds better. |
 
-**Other local release features:** Microphone device selection passed (see below). The input meter and start/stop shortcut passed. Optional system audio is next, after the screen-permission check. Test optional system audio separately before including it. Finish the active feature and its checks before starting another.
+**Other local release features:** Microphone device selection passed (see below). The input meter and start/stop shortcut passed. Optional system audio is built and in owner testing. Test optional system audio separately before including it. Finish the active feature and its checks before starting another.
 
 **Microphone selection (passed 16 November 2026):** A new "Input" menu under the Microphone switch lists every connected mic, plus "Mac default", which follows System Settings → Sound → Input and is used until the owner picks something else. The pick is remembered between launches by the mic's device ID (`MicrophoneList.swift`) and passed to ScreenCaptureKit as the capture device. If the remembered mic is unplugged, the menu shows it as "(not connected)", the recording uses the Mac default, and a note says so; plugging it back in makes it the input again. If the mic in use is unplugged mid-recording, the screen keeps recording, a warning appears straight away, and the saved-file message says the voice may stop early. Voice cleanup and its sync handling are unchanged, since they work on the saved file whichever mic made it.
 
@@ -70,5 +70,14 @@
 | Builds on the target Mac with no warnings | Done 16 Nov. |
 | Shortcut registers on the Mac, and a clash with another app is detected | Passed 16 Nov (test tools). |
 | Owner starts and stops a recording with ⌥⇧⌘R while another app is in front, and cancels the picker with it | Passed 16 Nov 2026 (owner: "Everything looks good"). |
+
+**Optional system audio (started 17 November 2026):** A "Record Mac sound" switch records what the Mac is playing (a video, a prototype's sound) alongside the voice, using ScreenCaptureKit (this app's own sounds are excluded). Real finding from the owner's first Mac test: macOS mixes the Mac sound and the microphone into one stereo audio track while recording, with no separate voice track. I first assumed two tracks and built a mixing step; the real file showed one, so that step was removed. Consequence: voice cleanup needs the voice on its own, so it is not applied while Mac sound is on, and the "Clean up voice" switch greys out with a note. Video stays H.264 at 30 fps, and recordings with the switch off are unchanged (cleanup works as before). Headphones are advised, since speakers would be heard by the mic as well as captured directly. If cleaned voice plus Mac sound is wanted later, it needs a different capture design that keeps the sources separate (own audio writers instead of Apple's recording output); that is on the later list and would need sync re-testing.
+
+| System audio step | Status |
+| --- | --- |
+| Code on a branch with a PR (not merged) | Done 17 Nov. |
+| Builds on the target Mac with no warnings | Done 17 Nov. |
+| Owner records with the switch on while a beep plays and they talk | Done 16 Nov: owner reported it "sounds right". The saved file (checked with ffprobe) has one stereo AAC track with the beep and the voice both in it, which showed macOS mixes them. |
+| Owner re-tests after the simplification: no orange banner, "Clean up voice" greys out with the switch on, and a recording with the switch off still gets cleanup | Pending (needs the owner). |
 
 **Decisions:** On 16 November 2026 the owner added voice cleanup (noise and echo reduction, a small level boost, a higher speech bit rate) as the current Milestone 1 audio feature; in-app gain control stays on the later list. The owner deferred the 45-minute test until the rest of the scope is finished, and it must still pass before Milestone 1 closes. On 16 November 2026 the owner accepted the 1-minute website and Figma test as passed; the 45-minute test and other long or heavy-load tests now live in "Final checks before wrap-up". The supplied brief replaces the earlier roadmap. Keep the existing native capture code as the starting point and change the HEVC-first setting to the brief's H.264 baseline (done and verified on the Mac on 16 November 2026). Trim, webcam, auto-zoom, and other deferred features stay on the later list. Hosted sharing begins with Milestone 2 after the owner confirms the local checks are complete. On 16 November 2026 the owner changed the "deny screen capture and recover" check. The app uses Apple's content picker, which grants access one recording at a time, so it never appears under Screen & System Audio Recording and that permission can't be denied (the owner confirmed it isn't listed and recording still works). The replacement check covers the two blocks that can happen: canceling the picker, and turning Microphone access off and back on.
