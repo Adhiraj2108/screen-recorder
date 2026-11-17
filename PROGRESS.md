@@ -99,10 +99,10 @@
 
 | Auto-upload step | Status |
 | --- | --- |
-| Code on a branch with a PR (not merged) | Done 17 Nov 2026. |
+| Code on a branch with a PR | Merged to main 17 Nov 2026 (PR #17) on the owner's written approval in the thread. |
 | Builds on the target Mac with no warnings | Done 17 Nov 2026. |
 | Automatic checks with made-up clips against a local copy of the server | 26 of 26 passed 17 Nov 2026: auto-upload starts, second recording queues then uploads, link copied and opens, server holds the full file, no duplicates; nothing moved before 5 days, nothing moved with the switch off, file kept when the server is unreachable, deleted online or changed, confirmed file moved after 5 days; Delete erases online (link 404, record gone) and optionally trashes the file; a failed upload is never recorded and its file is kept after 30 days. |
-| Owner tests in the real app | Pending owner. |
+| Owner tests in the real app | Not reported: the owner approved the merge without separate test results. Covered in the pilot. |
 
 **Hosting decision (17 November 2026):** The owner chose free Cloudflare R2 storage over paid Stream, on the condition that clients get a Loom-like experience (open a link in any browser or phone, press play, fullscreen, speed, seeking). Cloudflare's R2 page (updated 30 Oct 2026) lists a free tier of 10 GB-month storage, 1 million write and 10 million read operations a month, and no charge for data sent to viewers; beyond that $0.015 per GB-month. Real recordings run about 0.8 Mbps (about 6 MB a minute for simple windows), so about 70 to 150 ten-minute videos fit. What differs from Stream, honestly: no automatic lower-quality versions, so a very slow connection may buffer on long videos (the viewer always gets the full-quality file, which also keeps dense Figma text sharp); the player is the browser's own with our speed buttons. Stream can be swapped in later for chosen videos without redoing the owner page or share links. Design: private bucket with no public address; the Worker checks the share link on every request; 30-minute signed playback addresses tied to one share link (so revoking works at once); Range support for seeking; delete removes the stored file. Still to do for fast starts: the app's saved MP4s have their index at the end, so the app needs a one-line "optimise for streaming" setting (done in step 3 with the Upload button).
 
