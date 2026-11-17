@@ -7,7 +7,7 @@ A short guide for the owner. It covers the Mac app and the hosting page that cli
 | Thing | Where it is |
 | --- | --- |
 | The app's code | This folder on the Mac (`Desktop/screen-recording-clone`) and on GitHub (`Adhiraj2108/screen-recorder`) |
-| Your recordings | `Movies/Screen Recorder` on the Mac. The app never deletes or changes them. |
+| Your recordings | `Movies/Screen Recorder` on the Mac. The app never changes them. If you leave the clean-up switch on, a recording moves to the Trash 5 days after its upload is confirmed (see Sharing). |
 | Uploaded videos and share links | Cloudflare (free R2 storage), behind https://recorder-web.rae-social-agency.workers.dev |
 | Your owner list (find, rename, share, revoke, delete) | https://recorder-web.rae-social-agency.workers.dev/admin |
 | Your owner key | The Mac's Keychain (for the app), `web/.prod.vars` on the Mac, and Cloudflare's secret store. It is never in the code or on GitHub. |
@@ -30,9 +30,11 @@ Recording:
 
 Sharing:
 
-1. In the **Share** area, give the video a title and press **Upload and get link**.
-2. When it finishes, the link is copied. Paste it to the client.
+1. With **Upload automatically** ticked (the default), the upload starts by itself as soon as the recording is saved, titled with the date and time. Untick it to review first; then give the video a title and press **Upload and get link**.
+2. When the server confirms it has the whole file, a share link is made and copied. Paste it to the client. If you record again while an upload is running, the new one waits and uploads straight after.
 3. To stop a client watching, open the owner list and switch the link off. It stops at once.
+4. A bad or accidental recording: press **Delete…** next to it in the Share area (under the link, or in **Recent uploads**). Choose **Delete online only**, or **Delete online and move recording to Trash**. Deleting online erases the video, its links and its title for good.
+5. With **Move recordings to the Trash 5 days after a confirmed upload** ticked (the default), each uploaded recording leaves `Movies/Screen Recorder` 5 days later. **Recent uploads** shows the date for each. Before moving a file the app asks the server again that the video is still there and complete; if it can't reach the server, the video was deleted online, the upload never finished, or the file was changed since, the recording stays. The app does this while it is open (checked at launch and every hour). Files go to the Trash, not straight to deletion, so emptying the Trash is still your decision.
 
 ## Update the app
 
@@ -60,6 +62,8 @@ Updates to the hosting page are published to Cloudflare by Claude, and only with
 | The shortcut says it's used by another app | Use the Record button instead, and tell Claude which app clashes. |
 | An upload stopped with a message | Check the internet, then press **Resume upload**. It carries on from where it stopped and never makes a second copy. |
 | An upload is stuck or you changed your mind | Press **Pause**, then **Discard**. Only the part-uploaded copy online is removed; your recording stays in Movies. |
+| You need a recording that was moved to the Trash | Open the Trash in the Dock, find it (named "Recording" with the date), right-click and choose **Put Back**. The online video is unaffected. |
+| You'd rather keep every recording on the Mac | Untick **Move recordings to the Trash…** in the Share area. Nothing is moved while it's off. |
 | The app asks for the owner key again | Paste it from your password manager. If you've lost it, see "Lost or leaked owner key". |
 | A client says the link doesn't open | Open it yourself in a private browser window. "This link isn't available" means the link is switched off or the video was deleted: make a new link in the owner list. If it plays for you, ask the client to try another browser or Wi-Fi. |
 | A long video buffers on a slow connection | Expected on very slow connections (the page always sends the full-quality file). Ask the client to pause for a minute and then play, or send a shorter clip. |

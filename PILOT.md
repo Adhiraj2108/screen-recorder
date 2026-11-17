@@ -16,7 +16,7 @@ Real client footage is shared only with the owner's OK, and the owner chooses th
 
 - [ ] Record a real walkthrough (a website or Figma file for the client) at your normal length.
 - [ ] Watch it back before sharing: text readable at full screen, voice clear, voice in time with the screen at the start and the end.
-- [ ] Upload it and note roughly how long the upload took.
+- [ ] Let it upload automatically (or untick **Upload automatically** first if you want to review it before it goes online) and note roughly how long the upload took.
 - [ ] Open the link yourself on your phone before sending it.
 - [ ] Send the link to the client the way you normally would.
 
@@ -43,4 +43,5 @@ Send these answers to Claude in the thread, and they'll go into PROGRESS.md.
 - Share links use the `workers.dev` address, not your own domain (later list).
 - Anyone with a forwarded link can watch while it's switched on. Named-recipient access for confidential work would need email checks first.
 - The long and heavy checks (45-minute recording, busy Mac, long upload on mobile data, Wi-Fi off mid-upload) are still open in PROGRESS.md under "Final checks".
-- Delete erases the video file, its links and its title record (live since 17 Nov 2026).
+- Delete erases the video file, its links and its title record (live since 17 Nov 2026). The app's **Delete…** button does the same and can also move the recording to the Trash.
+- With the clean-up switch on, recordings move to the Trash 5 days after a confirmed upload. Keep anything you need for the pilot write-up, or untick the switch.

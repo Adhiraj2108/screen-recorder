@@ -21,12 +21,15 @@ struct SharingAPI: Sendable {
     let key: String
     private let session: URLSession
 
-    init(baseURL: URL, key: String) {
+    /// `patient` waits for the internet to come back (right for uploads); otherwise a call fails within seconds when
+    /// offline, which suits checks and button presses that should report back straight away.
+    init(baseURL: URL, key: String, patient: Bool = true) {
         self.baseURL = baseURL
         self.key = key
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 60
-        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForRequest = patient ? 60 : 20
+        configuration.timeoutIntervalForResource = patient ? 7 * 86_400 : 30
+        configuration.waitsForConnectivity = patient
         session = URLSession(configuration: configuration)
     }
 
@@ -66,6 +69,9 @@ struct SharingAPI: Sendable {
         (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
+    /// The same server and key, but calls give up quickly when offline.
+    var quick: SharingAPI { SharingAPI(baseURL: baseURL, key: key, patient: false) }
+
     /// Checks the key and address without changing anything.
     func verify() async throws {
         _ = try await send(request("GET", "/api/videos"))
@@ -79,8 +85,14 @@ struct SharingAPI: Sendable {
 
     /// Where the video stands: `ready` when the file is already uploaded.
     func status(of videoID: String) async throws -> String {
+        try await uploadState(of: videoID).status
+    }
+
+    /// The video's status and, once ready, the size of the file the server actually holds.
+    func uploadState(of videoID: String) async throws -> (status: String, sizeBytes: Int?) {
         let data = try await send(request("GET", "/api/videos/\(videoID)/upload"))
-        return object(data)["status"] as? String ?? "draft"
+        let body = object(data)
+        return (body["status"] as? String ?? "draft", (body["size_bytes"] as? NSNumber)?.intValue)
     }
 
     /// Starts the upload, or picks up the one in progress for a file of the same size, listing the parts already there.
@@ -116,8 +128,13 @@ struct SharingAPI: Sendable {
     }
 
     /// Deletes a video and its stored file, used to discard an upload the owner gave up on.
+    /// A video that is already gone online (404) counts as deleted.
     func deleteVideo(videoID: String) async throws {
-        _ = try await send(request("DELETE", "/api/videos/\(videoID)"))
+        do {
+            _ = try await send(request("DELETE", "/api/videos/\(videoID)"))
+        } catch let error as APIError where error.status == 404 {
+            return
+        }
     }
 
     /// Makes a new share link and returns its address.

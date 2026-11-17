@@ -1,4 +1,6 @@
 # Solo Mac screen recorder
+
+> This is the original brief, kept as written. Changes the owner has decided since (for example R2 storage instead of Stream, automatic upload, and moving uploaded recordings to the Trash after 5 days) are recorded under Decisions in [PROGRESS.md](PROGRESS.md).
 ## Product brief and build guide
 
 ### Goal
