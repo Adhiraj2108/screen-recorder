@@ -7,7 +7,7 @@
     "db:local": "wrangler d1 migrations apply recorder-db --local",
     "db:remote": "wrangler d1 migrations apply recorder-db --remote",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs && node scripts/smoke-media.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261116.1",

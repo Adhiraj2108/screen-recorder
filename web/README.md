@@ -11,7 +11,7 @@ npm run db:local     # once; creates the local test database (about 1 MB)
 npm run dev          # starts it at http://localhost:8787
 ```
 
-Open http://localhost:8787. Sign in with the key in `web/.dev.vars` (the text after `OWNER_KEY=`). That file stays on your Mac and is never committed. `npm run smoke` (with `npm run dev` running) runs the automatic checks.
+Open http://localhost:8787. Sign in with the key in `web/.dev.vars` (the text after `OWNER_KEY=`). That file stays on your Mac and is never committed. `npm run smoke` (with `npm run dev` running, and ffmpeg installed) runs all the automatic checks.
 
 ## The live copy on Cloudflare
 
@@ -19,7 +19,7 @@ Deployed as the Worker `recorder-web` with its own database `recorder-db` (the "
 
 ## What exists now
 
-There is deliberately **no upload box yet**. This step only manages video records and share links. Uploading starts in step 2 (Cloudflare Stream) and gets its button in the app in step 3. Until then the share page says the video will play once it's uploaded.
+Upload and playback use a private R2 bucket (`recorder-videos`). The owner page has an upload box (choose an MP4; it uploads in 8 MB parts and resumes if the connection drops). The share page has the player with speed buttons and fullscreen. The Mac app's Upload button comes in step 3.
 
 - Owner page: sign in, add/rename/delete videos, create share links (with an optional Figma or staging link), copy them, switch them off.
 - Share links: `/s/<random token>`. Unknown, switched-off and deleted all show the same "not available" page.

@@ -7,6 +7,8 @@
   "workers_dev": true,
   // No extra public preview addresses for this app.
   "preview_urls": false,
+  // The videos themselves: a private bucket with no public address. Only this Worker can read it.
+  "r2_buckets": [{ "binding": "VIDEOS", "bucket_name": "recorder-videos" }],
   "d1_databases": [
     {
       "binding": "DB",

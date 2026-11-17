@@ -40,6 +40,16 @@ export function randomToken(byteLength = 24): string {
   return base64Url(crypto.getRandomValues(new Uint8Array(byteLength)));
 }
 
+/** Signs a playback address. Tied to one share link, so switching the link off ends playback at once. */
+export async function playbackSignature(env: { OWNER_KEY: string }, shareId: string, expires: number): Promise<string> {
+  const hmacKey = await crypto.subtle.importKey("raw", encoder.encode(`playback:${env.OWNER_KEY}`), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return base64Url(new Uint8Array(await crypto.subtle.sign("HMAC", hmacKey, encoder.encode(`${shareId}.${expires}`))));
+}
+
+export async function signatureMatches(a: string, b: string): Promise<boolean> {
+  return safeEqual(a, b);
+}
+
 export async function keyMatches(env: { OWNER_KEY: string }, candidate: string): Promise<boolean> {
   return safeEqual(candidate, env.OWNER_KEY);
 }
