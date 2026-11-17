@@ -24,3 +24,7 @@ dist/
 *.mp4
 *.m4v
 *.webm
+
+# Cloudflare Worker secrets for local runs
+.dev.vars
+web/.dev.vars

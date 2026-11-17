@@ -1,0 +1,16 @@
+{
+  // Everything for the screen recorder's hosted videos lives in its own Worker and its own D1 database,
+  // separate from anything else on the Cloudflare account.
+  "name": "screen-recorder-web",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "screen-recorder",
+      // Placeholder for local runs. Replaced with the real ID when the database is created on Cloudflare (step 2).
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
