@@ -121,7 +121,7 @@
 | Review speed, audio and text quality | Pending owner (answers go in the PILOT.md table). |
 | Client opened the link without help | Pending owner. |
 | Record remaining limits | Draft list in PILOT.md; finalised after the pilot. |
-| Delete erases the video's title record too | Owner decided yes on 17 Nov 2026. Built: delete now removes the stored file, every share link and the video's database record (title and dates), and a clean-up migration erases records left by earlier deletes. All 66 automatic checks pass locally, including a new one that confirms nothing about the video is left in the database. Publishing it to the live site waits for the owner's written OK. |
+| Delete erases the video's title record too | Owner decided yes on 17 Nov 2026. Built: delete now removes the stored file, every share link and the video's database record (title and dates), and a clean-up migration erases records left by earlier deletes. All 66 automatic checks pass locally, including a new one that confirms nothing about the video is left in the database. Published 17 Nov 2026 on the owner's written OK ("publish"): migration applied to the live database (9 old deleted-video records erased, 0 left) and the Worker deployed; all 66 checks pass against the live site. |
 
 **Later list (not in the current milestone):** branded viewing page and redesign (name, logo, colours); in-app gain control; cleaned voice together with Mac sound (needs separate audio tracks); Stream for chosen long videos if slow connections struggle; custom domain for share links.
 
