@@ -1,0 +1,20 @@
+{
+  // Everything for the screen recorder's hosted videos lives in its own Worker and its own D1 database, named
+  // with the "recorder-" prefix to keep it separate from anything else on the Cloudflare account.
+  "name": "recorder-web",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-01",
+  "workers_dev": true,
+  // No extra public preview addresses for this app.
+  "preview_urls": false,
+  // The videos themselves: a private bucket with no public address. Only this Worker can read it.
+  "r2_buckets": [{ "binding": "VIDEOS", "bucket_name": "recorder-videos" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "recorder-db",
+      "database_id": "ecccb548-9c78-4ce7-8d07-4a77249b95c5",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
