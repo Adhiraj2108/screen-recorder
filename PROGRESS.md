@@ -4,7 +4,7 @@
 
 **Status:** Incomplete (waits on the Final checks below). Milestones 2 and 3 are closed.
 
-**Active:** Milestone 4 (pilot on a real project), started 17 November 2026. Milestones 2 and 3 are closed. Milestone 1 is feature-complete and merged (format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound), but it is NOT closed: the "Final checks before wrap-up" below are deferred to the end of the whole app build and must pass before the app is called finished.
+**Active:** No open milestone. Milestone 4 closed on 17 November 2026 as "built, pilot deferred" (owner decision); the real-project pilot is now in the Final checks. Milestones 2, 3 and 4 are closed. Milestone 1 is feature-complete and merged (format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound), but it is NOT closed: the "Final checks before wrap-up" below are deferred to the end of the whole app build and must pass before the app is called finished.
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -36,6 +36,7 @@
 | Mac sound on for a longer recording with a real video playing and narration | Pending. Check sync and that the voice stays clear. |
 | Wi-Fi switched off mid-upload on the real Mac (moved from Milestone 3, 17 Nov) | Pending owner. Steps: record 3 to 5 minutes of busy motion, press Upload, turn Wi-Fi off within 3 seconds, wait 10 seconds, turn it back on; the upload should carry on (or Resume upload), and the video should appear once online. |
 | Long upload and playback of a 45-minute recording on mobile data | Pending, with the 45-minute recording check. |
+| Real-project pilot (moved from Milestone 4, 17 Nov) | Pending owner. Use the app on one real project, then answer the questions in [PILOT.md](PILOT.md): speed, audio and text quality, and whether the client opened the link without help. Real client footage only with the owner's OK. |
 
 **Audio feature (added 16 November 2026):** Clean up the narration without taking anything away. The owner asked for less background noise and room echo, plus small safe quality gains. ScreenCaptureKit has no noise or echo setting for its microphone capture, so the app now cleans the saved file right after recording (`VoiceCleanup.swift`): Apple's voice isolation (high-quality voice model), an 80 Hz rumble filter, a 2 dB level boost (about 25% louder) with a peak limiter 1 dB below full scale, and AAC at 96 kbps per channel instead of about 53. The video is copied untouched, the cleaned audio goes back at the original start time with the isolation delay removed, and the original file is kept if any step fails. The narration is decoded on the video's timeline from time zero, so ScreenCaptureKit's lead-in offset (about 0.38 s) becomes silence and sync holds. A "Clean up voice" switch (on by default) lets the owner compare. Video stays H.264 at 30 fps.
 
@@ -126,11 +127,13 @@
 | Milestone 4 check | Status |
 | --- | --- |
 | Short guide for launching, updating and recovering the app | Written 17 Nov 2026 (GUIDE.md). Owner to read and say if anything is unclear. |
-| Use the app on a real project | Pending owner (owner picks the project; real client footage only with their OK). |
-| Review speed, audio and text quality | Pending owner (answers go in the PILOT.md table). |
-| Client opened the link without help | Pending owner. |
-| Record remaining limits | Draft list in PILOT.md; finalised after the pilot. |
+| Use the app on a real project | Moved to the Final checks (owner decision, 17 Nov). |
+| Review speed, audio and text quality | Moved to the Final checks, with the pilot. |
+| Client opened the link without help | Moved to the Final checks, with the pilot. |
+| Record remaining limits | Listed in PILOT.md; to be updated after the pilot. |
 | Delete erases the video's title record too | Owner decided yes on 17 Nov 2026. Built: delete now removes the stored file, every share link and the video's database record (title and dates), and a clean-up migration erases records left by earlier deletes. All 66 automatic checks pass locally, including a new one that confirms nothing about the video is left in the database. Published 17 Nov 2026 on the owner's written OK ("publish"): migration applied to the live database (9 old deleted-video records erased, 0 left) and the Worker deployed; all 66 checks pass against the live site. |
+
+**Milestone 4 status: closed on 17 November 2026 by the owner's decision** ("Run pilot later"). Reason: everything that could be built and checked without a real client project is done (guide, pilot checklist, full erase on delete, auto-upload and clean-up), and the owner will run the pilot later. The pilot now sits in the Final checks list and must pass before the app is called finished.
 
 **Later list (not in the current milestone):** branded viewing page and redesign (name, logo, colours); in-app gain control; cleaned voice together with Mac sound (needs separate audio tracks); Stream for chosen long videos if slow connections struggle; custom domain for share links.
 
