@@ -12,6 +12,7 @@ struct RecorderView: View {
             microphoneChoice: MicrophoneChoice(list: recorder.microphones),
             inputLevel: InputLevel(meter: recorder.meter),
             shortcutAvailable: recorder.shortcutAvailable,
+            sharing: AnyView(SharingSection(publisher: recorder.publisher, canOffer: recorder.phase == .ready)),
             message: recorder.message,
             lastRecordingDuration: recorder.lastRecording?.duration,
             onPrimaryAction: recorder.primaryAction,
@@ -30,6 +31,7 @@ private struct RecorderPanel: View {
     var microphoneChoice = MicrophoneChoice()
     var inputLevel = InputLevel()
     var shortcutAvailable = true
+    var sharing: AnyView?
     var message: String?
     var lastRecordingDuration: TimeInterval?
     var onPrimaryAction: () -> Void = {}
@@ -147,6 +149,8 @@ private struct RecorderPanel: View {
                 savedRecording(duration: lastRecordingDuration)
             }
 
+            if let sharing { sharing }
+
             Spacer(minLength: 0)
 
             HStack(spacing: 12) {
@@ -165,7 +169,7 @@ private struct RecorderPanel: View {
         }
         .font(.system(size: 13, weight: .medium))
         .padding(24)
-        .frame(minWidth: 460, minHeight: 548)
+        .frame(minWidth: 460, minHeight: 640)
         .background(isDark ? Color(white: 0.09) : Color(red: 0.965, green: 0.961, blue: 0.950))
     }
 
