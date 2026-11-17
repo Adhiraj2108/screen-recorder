@@ -4,7 +4,7 @@
 
 **Status:** Incomplete. No milestone has been closed.
 
-**Active:** Milestone 2 (one hosted video). Milestone 2 is closed. Milestone 3 (dependable solo workflow): all checks passed on 17 Nov 2026 except the owner's physical Wi-Fi-off test. Milestone 1 is feature-complete and merged (format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound), but it is NOT closed: the "Final checks before wrap-up" below are deferred to the end of the whole app build and must pass before the app is called finished.
+**Active:** Milestone 2 (one hosted video). Milestones 1 (features), 2 and 3 are done. Milestone 4 (pilot on a real project) is next, with the Final checks list still open. Milestone 1 is feature-complete and merged (format, voice cleanup, microphone choice, level meter, shortcut, optional Mac sound), but it is NOT closed: the "Final checks before wrap-up" below are deferred to the end of the whole app build and must pass before the app is called finished.
 
 **Done on 16 November 2026 (merged to main):**
 
@@ -34,6 +34,8 @@
 | Heavy load: record while the Mac is busy (many browser tabs, Figma, a video call or other heavy app) | Pending. Check for dropped frames, stutter, and audio drift. |
 | Microphone selection over a long recording with the chosen headset or external mic | Pending (mic selection itself passed its short tests). |
 | Mac sound on for a longer recording with a real video playing and narration | Pending. Check sync and that the voice stays clear. |
+| Wi-Fi switched off mid-upload on the real Mac (moved from Milestone 3, 17 Nov) | Pending owner. Steps: record 3 to 5 minutes of busy motion, press Upload, turn Wi-Fi off within 3 seconds, wait 10 seconds, turn it back on; the upload should carry on (or Resume upload), and the video should appear once online. |
+| Long upload and playback of a 45-minute recording on mobile data | Pending, with the 45-minute recording check. |
 
 **Audio feature (added 16 November 2026):** Clean up the narration without taking anything away. The owner asked for less background noise and room echo, plus small safe quality gains. ScreenCaptureKit has no noise or echo setting for its microphone capture, so the app now cleans the saved file right after recording (`VoiceCleanup.swift`): Apple's voice isolation (high-quality voice model), an 80 Hz rumble filter, a 2 dB level boost (about 25% louder) with a peak limiter 1 dB below full scale, and AAC at 96 kbps per channel instead of about 53. The video is copied untouched, the cleaned audio goes back at the original start time with the isolation delay removed, and the original file is kept if any step fails. The narration is decoded on the video's timeline from time zero, so ScreenCaptureKit's lead-in offset (about 0.38 s) becomes silence and sync holds. A "Clean up voice" switch (on by default) lets the owner compare. Video stays H.264 at 30 fps.
 
@@ -106,7 +108,7 @@
 | What delete removes (host and Mac) | Checked on the live site. Removed: the stored video file (confirmed missing from the bucket), the share links (404), the entry in the owner list; 47.6 MB of storage freed. Kept: a database record with the video's title and dates, marked deleted (no file, links off). The recording on the Mac is never touched. Open decision for the owner: erase the title record completely on delete (recommended for confidential titles). |
 | Wi-Fi switched off mid-upload on the real Mac | Pending owner (a system setting Claude does not change; steps sent). The relay blackout above is the substitute. Expected behaviour: the progress bar freezes while offline and carries on when Wi-Fi returns; if it stops with a message, Resume upload continues from the last part. |
 
-**Milestone 3 status:** all checks pass except the owner's one-minute physical Wi-Fi test; Milestone 3 closes when the owner reports that result.
+**Milestone 3 status: closed on 17 November 2026 by the owner's decision** ("I'll run the wifi test later. Let's close Milestone 3."). The one-minute physical Wi-Fi-off upload test moves to the Final checks list below; the relay blackout test is the evidence until then.
 
 **Milestone 3 (dependable solo workflow), built before testing:** resume after a dropped connection or a restart without duplicates, switching a link off, and delete removing the stored file are built and tested in code. What remains is the owner's hands-on checks: disconnect Wi-Fi mid-upload and confirm it resumes with the local file intact and one video; relaunch the app mid-upload and recover; revoke a link and confirm a fresh browser cannot play it; and confirm what delete removes (the stored file and links online; the Mac file stays). Playback addresses last 30 minutes but are re-checked against the link on every request, so switching a link off ends playback immediately, better than the brief's "valid until expiry".
 
