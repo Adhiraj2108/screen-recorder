@@ -43,4 +43,4 @@ Send these answers to Claude in the thread, and they'll go into PROGRESS.md.
 - Share links use the `workers.dev` address, not your own domain (later list).
 - Anyone with a forwarded link can watch while it's switched on. Named-recipient access for confidential work would need email checks first.
 - The long and heavy checks (45-minute recording, busy Mac, long upload on mobile data, Wi-Fi off mid-upload) are still open in PROGRESS.md under "Final checks".
-- Delete currently keeps a record of the video's title and dates (the video file and links are removed). Whether to erase that record too is an open owner decision.
+- Delete erases the video file, its links and its title record (decided 17 Nov 2026; live once published).

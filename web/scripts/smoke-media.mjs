@@ -106,6 +106,11 @@ check("the file is in the bucket before delete", exists());
 check("delete works", (await send("DELETE", `/api/videos/${video.id}`, { headers: auth })).status === 200);
 check("the file is gone from the bucket after delete", !exists());
 check("links to a deleted video are off", (await send("GET", `/s/${second.token}`)).status === 404);
+const d1Flag = r2Flag === "--remote" ? "--remote" : "--local";
+const rowsLeft = () => JSON.parse(execFileSync("npx", ["wrangler", "d1", "execute", "recorder-db", d1Flag, "--json", "--command",
+  `SELECT (SELECT COUNT(*) FROM videos WHERE id = '${video.id}') + (SELECT COUNT(*) FROM shares WHERE video_id = '${video.id}') + (SELECT COUNT(*) FROM upload_parts WHERE video_id = '${video.id}') AS n`],
+  { stdio: ["ignore", "pipe", "pipe"], cwd: new URL("..", import.meta.url).pathname }).toString())[0].results[0].n;
+check("delete erases the video's record, title and links from the database", rowsLeft() === 0);
 
 // Cancelling an upload
 const cancelVideo = await (await send("POST", "/api/videos", { headers: auth, json: { title: "Cancel test" } })).json();

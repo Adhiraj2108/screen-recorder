@@ -291,7 +291,7 @@ export default {
         return json({ id, title });
       }
 
-      // DELETE /api/videos/:id  (also switches off every link)
+      // DELETE /api/videos/:id  (removes the file, every link and the video's record)
       if (!sharesPart && request.method === "DELETE") {
         // Remove the file first. If that fails the video stays in the list, so nothing is left behind unnoticed.
         try {
@@ -302,8 +302,9 @@ export default {
         }
         await env.DB.batch([
           env.DB.prepare(`DELETE FROM upload_parts WHERE video_id = ?`).bind(id),
-          env.DB.prepare(`UPDATE shares SET revoked_at = COALESCE(revoked_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE video_id = ?`).bind(id),
-          env.DB.prepare(`UPDATE videos SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`).bind(id),
+          // Erase everything about the video (title, dates, links), so confidential titles don't linger.
+          env.DB.prepare(`DELETE FROM shares WHERE video_id = ?`).bind(id),
+          env.DB.prepare(`DELETE FROM videos WHERE id = ?`).bind(id),
         ]);
         return json({ ok: true });
       }
